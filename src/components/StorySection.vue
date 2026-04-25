@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted } from 'vue'
+import StoryOverviewPreviewPanel from './StoryOverviewPreviewPanel.vue'
 import StoryPreviewPanel from './StoryPreviewPanel.vue'
 import type { Locale, StoryChapterPreview, StoryChapterScript } from '../types'
 
@@ -23,18 +24,18 @@ const copy = computed(() =>
   props.locale === 'zh'
     ? {
         eyebrow: '故事',
-        title: '四个国家的转型切片',
+        title: '六步读懂全球碳脱钩',
         description:
-          '这四章不是目录，而是四种完全不同的转型语境。它们共同回答的，是同一个问题：增长之后，排放究竟会怎样改变。',
+          '这不是一组可随意点击的案例，而是一条从全局判断到机制追问、再到自由验证的阅读路线。',
         chapterLabel: '第',
         jumpAtlas: '进入数据探索',
         previewFallback: '章节图像正在加载。',
       }
     : {
         eyebrow: 'Story',
-        title: 'Four slices of the transition',
+        title: 'A six-step guide to global carbon decoupling',
         description:
-          'These four chapters are not menu items so much as four very different transition contexts. Together they circle the same question: what really happens to emissions after growth takes hold?',
+          'This is not a loose set of cases. It is a reading path from global diagnosis to mechanism, then back to open exploration.',
         chapterLabel: 'Chapter',
         jumpAtlas: 'Open the data explorer',
         previewFallback: 'The chapter preview is loading.',
@@ -168,7 +169,13 @@ onBeforeUnmount(() => {
 
         <Transition name="story-fade" mode="out-in">
           <StoryPreviewPanel
-            v-if="preview"
+            v-if="preview && (preview.mode === 'trajectory' || preview.mode === 'consumption')"
+            :key="preview.chapterId"
+            :preview="preview"
+            :locale="locale"
+          />
+          <StoryOverviewPreviewPanel
+            v-else-if="preview"
             :key="preview.chapterId"
             :preview="preview"
             :locale="locale"

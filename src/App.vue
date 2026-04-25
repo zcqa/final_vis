@@ -8,7 +8,7 @@ import ProjectHero from './components/ProjectHero.vue'
 import StorySection from './components/StorySection.vue'
 import TrajectoryPanel from './components/TrajectoryPanel.vue'
 import TypologySection from './components/TypologySection.vue'
-import { storyChapters } from './content/storyChapters'
+import { guidedTourSteps } from './content/guidedTourSteps'
 import type {
   CountrySeriesGroup,
   CountryOption,
@@ -19,7 +19,7 @@ import type {
   MetricKey,
   OverviewPoint,
   StoryChapterPreview,
-  StoryPreset,
+  StoryChapterScript,
 } from './types'
 import { formatNumber } from './utils/formatters'
 
@@ -45,29 +45,6 @@ const incomeLabels: Record<string, Record<Locale, string>> = {
   'Lower middle income': { zh: '中低收入', en: 'Lower middle income' },
   'Upper middle income': { zh: '中高收入', en: 'Upper middle income' },
   'Not classified': { zh: '未分类', en: 'Not classified' },
-}
-
-const storyCopies: Record<string, Record<Locale, { label: string; description: string }>> = {
-  china: {
-    zh: { label: '只看中国', description: '观察高速增长与排放变化是否同步。' },
-    en: { label: 'China only', description: 'Check whether rapid growth still moves in step with emissions.' },
-  },
-  'uk-germany': {
-    zh: { label: '英国 vs 德国', description: '两个都在转弯，但转得并不一样。' },
-    en: { label: 'UK vs Germany', description: 'Both turned, but not in quite the same way.' },
-  },
-  'us-india': {
-    zh: { label: '美国 vs 印度', description: '发展阶段不同，路径也会很不一样。' },
-    en: { label: 'US vs India', description: 'Different development stages often produce very different paths.' },
-  },
-  'high-income': {
-    zh: { label: '高收入样本', description: '高收入国家也并不会自然地走成同一条路。' },
-    en: { label: 'High-income cases', description: 'High-income countries do not automatically end up on the same path.' },
-  },
-  'growth-and-emissions': {
-    zh: { label: '增长伴随排放', description: '有些国家还在一起往上走。' },
-    en: { label: 'Growth with emissions', description: 'Some countries are still climbing on both axes.' },
-  },
 }
 
 const storyAnnotationMap: Record<
@@ -422,24 +399,28 @@ const incomeOptions = computed(() => [
   })) ?? []),
 ])
 
-const rawStoryPresets = computed(() => meta.value?.storyPresets ?? [])
-const localizedStoryPresets = computed<StoryPreset[]>(() =>
-  rawStoryPresets.value.map((story) => ({
-    ...story,
-    label: storyCopies[story.id]?.[locale.value].label ?? story.label,
-    description: storyCopies[story.id]?.[locale.value].description ?? story.description,
-  })),
-)
-const activeStoryObject = computed(
-  () => localizedStoryPresets.value.find((story) => story.id === activeStory.value) ?? null,
-)
-const orderedStoryChapters = computed(() => [...storyChapters].sort((left, right) => left.order - right.order))
+const orderedStoryChapters = computed(() => [...guidedTourSteps].sort((left, right) => left.order - right.order))
 const activeStoryChapter = computed(
   () =>
     orderedStoryChapters.value.find((chapter) => chapter.id === activeStory.value) ??
     orderedStoryChapters.value[0] ??
     null,
 )
+const activeStoryObject = computed(() => {
+  if (!activeStory.value) {
+    return null
+  }
+
+  const chapter = orderedStoryChapters.value.find((candidate) => candidate.id === activeStory.value)
+  if (!chapter) {
+    return null
+  }
+
+  return {
+    label: chapter.title[locale.value],
+    description: chapter.focusLabel[locale.value],
+  }
+})
 
 const metricOptions = computed(() =>
   (Object.keys(metricDefinitions) as MetricKey[]).map((value) => ({
@@ -607,44 +588,52 @@ const typologyCards = computed<TypologyCard[]>(() => {
   })
 })
 
+function buildOverviewPoint(
+  country: CountryOption,
+  rangeStartYear: number,
+  rangeEndYear: number,
+  metric: MetricKey,
+) {
+  const startRecord = getRecord(country.isoCode, rangeStartYear)
+  const endRecord = getRecord(country.isoCode, rangeEndYear)
+
+  if (!startRecord || !endRecord) {
+    return null
+  }
+
+  const gdpChangePct = percentChange(startRecord.gdpPerCapita, endRecord.gdpPerCapita)
+  const metricStart = metricValue(startRecord, metric)
+  const metricEnd = metricValue(endRecord, metric)
+  const metricChangePct = percentChange(metricStart, metricEnd)
+
+  if (gdpChangePct === null || metricChangePct === null) {
+    return null
+  }
+
+  const renewablesChangePts =
+    startRecord.renewablesShareEnergy !== null && endRecord.renewablesShareEnergy !== null
+      ? endRecord.renewablesShareEnergy - startRecord.renewablesShareEnergy
+      : null
+
+  return {
+    ...country,
+    startYear: rangeStartYear,
+    endYear: rangeEndYear,
+    startRecord,
+    endRecord,
+    gdpChangePct,
+    metricChangePct,
+    renewablesChangePts,
+    metricStart,
+    metricEnd,
+    status: overviewStatus(gdpChangePct, metricChangePct),
+  }
+}
+
 const overviewPoints = computed<OverviewPoint[]>(() =>
   filteredCountries.value.flatMap((country) => {
-    const startRecord = getRecord(country.isoCode, startYear.value)
-    const endRecord = getRecord(country.isoCode, endYear.value)
-
-    if (!startRecord || !endRecord) {
-      return []
-    }
-
-    const gdpChangePct = percentChange(startRecord.gdpPerCapita, endRecord.gdpPerCapita)
-    const metricStart = metricValue(startRecord, selectedMetric.value)
-    const metricEnd = metricValue(endRecord, selectedMetric.value)
-    const metricChangePct = percentChange(metricStart, metricEnd)
-
-    if (gdpChangePct === null || metricChangePct === null) {
-      return []
-    }
-
-    const renewablesChangePts =
-      startRecord.renewablesShareEnergy !== null && endRecord.renewablesShareEnergy !== null
-        ? endRecord.renewablesShareEnergy - startRecord.renewablesShareEnergy
-        : null
-
-    return [
-      {
-        ...country,
-        startYear: startYear.value,
-        endYear: endYear.value,
-        startRecord,
-        endRecord,
-        gdpChangePct,
-        metricChangePct,
-        renewablesChangePts,
-        metricStart,
-        metricEnd,
-        status: overviewStatus(gdpChangePct, metricChangePct),
-      },
-    ]
+    const point = buildOverviewPoint(country, startYear.value, endYear.value, selectedMetric.value)
+    return point ? [point] : []
   }),
 )
 
@@ -691,6 +680,7 @@ const storyPreview = computed<StoryChapterPreview | null>(() => {
     return null
   }
 
+  const mode = chapter.viewMode ?? 'trajectory'
   const seriesGroups: CountrySeriesGroup[] = chapter.countries
     .map((isoCode) => {
       const values =
@@ -715,11 +705,20 @@ const storyPreview = computed<StoryChapterPreview | null>(() => {
 
   return {
     chapterId: chapter.id,
+    mode,
     metricKey: chapter.metric,
     metricLabel: metricDefinitions[chapter.metric][locale.value],
     startYear: chapter.startYear,
     endYear: chapter.endYear,
     seriesGroups,
+    overviewPoints:
+      mode === 'overview' || mode === 'absolute' || mode === 'explore'
+        ? (meta.value?.countryOptions ?? []).flatMap((country) => {
+            const point = buildOverviewPoint(country, chapter.startYear, chapter.endYear, chapter.metric)
+            return point ? [point] : []
+          })
+        : undefined,
+    highlightStatus: mode === 'absolute' ? 'decoupled' : undefined,
   }
 })
 
@@ -810,20 +809,17 @@ function removeCountry(isoCode: string) {
   selectedCountries.value = selectedCountries.value.filter((currentIsoCode) => currentIsoCode !== isoCode)
 }
 
-function applyStory(story: StoryPreset) {
+function applyTourStep(step: StoryChapterScript) {
   stopTimelinePlayback()
   isApplyingStory.value = true
-  activeStory.value = story.id
-  selectedCountries.value = story.countries.slice(0, 4)
-  if (story.metric) {
-    selectedMetric.value = story.metric
-  }
-  if (story.startYear) {
-    startYear.value = story.startYear
-  }
-  if (story.endYear) {
-    endYear.value = story.endYear
-  }
+  activeStory.value = step.id
+  searchQuery.value = ''
+  regionFilter.value = 'All'
+  incomeFilter.value = 'All'
+  selectedCountries.value = step.countries.slice(0, 4)
+  selectedMetric.value = step.metric
+  startYear.value = step.startYear
+  endYear.value = step.endYear
   queueMicrotask(() => {
     isApplyingStory.value = false
   })
@@ -847,9 +843,9 @@ function resetExploration() {
 }
 
 function activateStoryFromChapter(storyId: string) {
-  const preset = localizedStoryPresets.value.find((story) => story.id === storyId)
-  if (preset) {
-    applyStory(preset)
+  const step = orderedStoryChapters.value.find((chapter) => chapter.id === storyId)
+  if (step) {
+    applyTourStep(step)
   }
 }
 

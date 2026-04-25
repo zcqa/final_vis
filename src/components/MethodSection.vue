@@ -13,6 +13,7 @@ const content = computed(() =>
         title: '数据来源与设计说明',
         intro:
           '这一部分整理数据来源、设计决策和局限性，用来补足正文之外的方法说明。',
+        writeupLabel: '完整项目说明文档（Markdown）',
         sections: [
           {
             title: '研究问题',
@@ -24,7 +25,7 @@ const content = computed(() =>
           {
             title: '设计决策',
             paragraphs: [
-              '最上面先用四个章节把读者带进来，再把控制权交给 Atlas。前一部分负责讲清楚，后一部分负责让人自己验证。',
+              '最上面先用六步 guided tour 把读者带进来，再把控制权交给 Atlas。前一部分负责讲清楚，后一部分负责让人自己验证。',
               '总览散点图回答“谁在哪”；connected scatter 回答“它是怎么走过去的”；机制视图再补一句“这条路径背后可能发生了什么”。',
             ],
           },
@@ -63,6 +64,7 @@ const content = computed(() =>
         title: 'Data sources and design decisions',
         intro:
           'This section gathers the sources, design choices, and limitations that sit behind the narrative and exploratory views above.',
+        writeupLabel: 'Full project write-up (Markdown)',
         sections: [
           {
             title: 'Research questions',
@@ -74,7 +76,7 @@ const content = computed(() =>
           {
             title: 'Design decisions',
             paragraphs: [
-              'The opening chapters bring readers into the subject first, then the Atlas hands control back for open inspection. One part explains, the other part lets people check for themselves.',
+              'The opening guided tour brings readers into the subject first, then the Atlas hands control back for open inspection. One part explains, the other part lets people check for themselves.',
               'The overview scatter answers who sits where. The connected scatter shows how a country got there. The mechanism views ask what may be happening behind that path.',
             ],
           },
@@ -118,7 +120,12 @@ const content = computed(() =>
         <p class="eyebrow">{{ content.eyebrow }}</p>
         <h2>{{ content.title }}</h2>
       </div>
-      <p class="panel-copy panel-copy--wide">{{ content.intro }}</p>
+      <div class="method-stage__summary">
+        <p class="panel-copy panel-copy--wide">{{ content.intro }}</p>
+        <a class="method-doc-link" href="final_project_writeup.md" target="_blank" rel="noreferrer">
+          {{ content.writeupLabel }}
+        </a>
+      </div>
     </div>
 
     <div class="method-list">

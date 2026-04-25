@@ -6,12 +6,24 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(__dirname, '..')
 const publicDir = path.join(projectRoot, 'public')
-const rootWriteup = path.join(projectRoot, 'HW2_PROJECT_WRITEUP.md')
-const publicWriteup = path.join(publicDir, 'HW2_PROJECT_WRITEUP.md')
+const staticCopies = [
+  {
+    source: path.join(projectRoot, 'HW2_PROJECT_WRITEUP.md'),
+    target: path.join(publicDir, 'HW2_PROJECT_WRITEUP.md'),
+    label: 'HW2 write-up',
+  },
+  {
+    source: path.join(projectRoot, 'FINAL_PROJECT_WRITEUP.md'),
+    target: path.join(publicDir, 'final_project_writeup.md'),
+    label: 'final project write-up',
+  },
+]
 const noJekyll = path.join(publicDir, '.nojekyll')
 
 await mkdir(publicDir, { recursive: true })
-await syncIfExists(rootWriteup, publicWriteup, 'write-up')
+for (const copy of staticCopies) {
+  await syncIfExists(copy.source, copy.target, copy.label)
+}
 await writeFile(noJekyll, '')
 
 console.log('Prepared static Pages assets and ensured .nojekyll.')

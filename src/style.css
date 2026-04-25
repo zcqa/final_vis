@@ -454,6 +454,81 @@ p {
   gap: 2px;
 }
 
+.story-overview__stat {
+  display: grid;
+  gap: 3px;
+  padding: 10px 0 2px;
+  border-top: 1px solid rgba(35, 48, 45, 0.08);
+}
+
+.story-overview__stat strong {
+  color: var(--text);
+  font-size: 0.96rem;
+}
+
+.story-overview__stat span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.story-overview__zero {
+  stroke: rgba(35, 48, 45, 0.24);
+  stroke-width: 1;
+  stroke-dasharray: 4 5;
+}
+
+.story-overview__watermark {
+  fill: rgba(35, 48, 45, 0.23);
+  font-size: 0.7rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.story-overview__point {
+  fill-opacity: 0.35;
+  stroke-opacity: 0.9;
+  stroke-width: 1.2;
+  cursor: crosshair;
+  transition: opacity 0.18s ease, fill-opacity 0.18s ease, stroke-width 0.18s ease;
+}
+
+.story-overview__point:hover {
+  fill-opacity: 0.9;
+  stroke: var(--ink);
+  stroke-width: 1.8;
+}
+
+.story-overview__point--muted {
+  fill-opacity: 0.08;
+  stroke-opacity: 0.28;
+}
+
+.story-overview__explore-card {
+  display: grid;
+  gap: 8px;
+  padding: 28px 18px;
+  border: 1px solid rgba(31, 143, 106, 0.14);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(31, 143, 106, 0.1), transparent 32%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(250, 248, 243, 0.82));
+}
+
+.story-overview__explore-card span {
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.story-overview__explore-card strong {
+  color: var(--text);
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
 .story-summary__prose {
   color: var(--text);
   line-height: 1.8;
@@ -893,6 +968,33 @@ p {
 .method-list {
   display: grid;
   gap: 0;
+}
+
+.method-stage__summary {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.method-doc-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-strong);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(31, 121, 96, 0.36);
+}
+
+.method-doc-link::after {
+  content: '↗';
+  font-size: 0.82rem;
+}
+
+.method-doc-link:hover {
+  color: var(--ink);
+  border-bottom-color: currentColor;
 }
 
 .method-row {

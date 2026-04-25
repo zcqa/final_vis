@@ -2,6 +2,8 @@ export type Locale = 'zh' | 'en'
 
 export type MetricKey = 'co2PerCapita' | 'consumptionCo2PerCapita' | 'co2'
 
+export type StoryViewMode = 'overview' | 'absolute' | 'trajectory' | 'consumption' | 'explore'
+
 export interface LocalizedText {
   zh: string
   en: string
@@ -40,6 +42,7 @@ export interface DataMeta {
 export interface StoryChapterScript {
   id: string
   order: number
+  viewMode?: StoryViewMode
   kicker: LocalizedText
   title: LocalizedText
   question: LocalizedText
@@ -62,11 +65,14 @@ export interface CountrySeriesGroup {
 
 export interface StoryChapterPreview {
   chapterId: string
+  mode: StoryViewMode
   metricKey: MetricKey
   metricLabel: string
   startYear: number
   endYear: number
   seriesGroups: CountrySeriesGroup[]
+  overviewPoints?: OverviewPoint[]
+  highlightStatus?: OverviewPoint['status']
 }
 
 export interface CountryYearRecord {
