@@ -37,8 +37,8 @@ const copy = computed(() =>
         metricIndex: `${props.metricLabel} 指数`,
         flowLabel: '轨迹流向',
         turningLabel: '排放峰值',
-        lineSingleLabel: '把起点统一设为 100 之后，增长与排放何时分开会清楚很多。',
-        lineMultiLabel: '把各国放到同一基线上之后，谁先掉头、谁仍在爬升会更直观。',
+        lineSingleLabel: '',
+        lineMultiLabel: '',
       }
     : {
         title: 'The path from growth to carbon',

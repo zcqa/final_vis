@@ -23,9 +23,9 @@ const activeChapter = computed(
 const copy = computed(() =>
   props.locale === 'zh'
     ? {
-        eyebrow: '故事',
+        eyebrow: '',
         title: '六步读懂全球碳脱钩',
-        description: '从全球象限、典型国家到消费端修正，沿着数据轨迹读一次增长与排放的分离。',
+        description: '',
         chapterLabel: '第',
         jumpAtlas: '进入数据探索',
         previewFallback: '章节图像正在加载。',

@@ -111,7 +111,7 @@ const copy = computed(() =>
         statusLowHigh: '低增长 / 高排放',
         legendTitle: '颜色',
         legendPopulation:
-          '点面积已做上限约束；超出核心范围的国家会贴边显示。播放时，选中和重点国家会留下最近年份的移动轨迹。',
+          '',
         zoomIn: '放大',
         zoomOut: '缩小',
         zoomReset: '还原',

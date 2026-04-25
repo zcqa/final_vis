@@ -37,7 +37,7 @@ const copy = computed(() =>
         eyebrow: 'Typology',
         title: '四种常见路径',
         description:
-          '把国家放在一起看之后，很多差别就不再像孤例，而会慢慢长成几种反复出现的路径。',
+          '',
         sampleCount: '国家数',
         medianGdp: 'GDP 中位变化',
         medianCo2: '人均 CO2 中位变化',

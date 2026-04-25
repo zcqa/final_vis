@@ -32,7 +32,7 @@ const copy = computed(() =>
         carbonIntensityChange: '碳强度变化',
         carbonIntensityUnit: '吨 CO2 / 千美元 GDP',
         lowCarbonElec: '低碳电力占比',
-        intensityNote: '这条线衡量每创造 1,000 美元 GDP 需要排放多少 CO2。线往下，说明经济活动变得更低碳；线持平或上升，说明增长仍然依赖较高排放。',
+        intensityNote: '',
         compareTitle: '几个信号',
         missingNote: 'N/A 表示该国家在当前年份范围内缺少能源结构、消费端排放或 GDP 字段。',
         headers: {
@@ -67,7 +67,7 @@ const copy = computed(() =>
         carbonIntensityChange: 'Carbon-intensity change',
         carbonIntensityUnit: 'tonnes CO2 / $1k GDP',
         lowCarbonElec: 'Low-carbon electricity',
-        intensityNote: 'This line measures how many tonnes of CO2 are emitted for every $1,000 of GDP. A falling line means the economy is becoming less carbon-intensive.',
+        intensityNote: '',
         compareTitle: 'Signals',
         missingNote: 'N/A means the selected country-year window lacks energy, consumption-emissions, or GDP fields.',
         headers: {
@@ -303,49 +303,20 @@ const dumbbellDomain = computed(() =>
 
 const dumbbellScale = computed(() => scaleLinear().domain(dumbbellDomain.value).range([0, 100]))
 
-const compareInsights = computed(() => {
-  if (compareRows.value.length < 2) {
-    return []
-  }
-
-  const strongestIntensityDrop = compareRows.value.find((row) => row.intensityChangePct !== null) ?? null
-  const biggestGap = [...compareRows.value]
-    .filter((row) => row.gapEnd !== null)
-    .sort((left, right) => (right.gapEnd ?? -Infinity) - (left.gapEnd ?? -Infinity))[0]
-
-  const insights = []
-  if (strongestIntensityDrop) {
-    insights.push(
-      props.locale === 'zh'
-        ? `${strongestIntensityDrop.country} 的碳强度下降最明显，为 ${formatSignedPercent(strongestIntensityDrop.intensityChangePct, 1, props.locale)}。`
-        : `${strongestIntensityDrop.country} shows the sharpest carbon-intensity decline at ${formatSignedPercent(strongestIntensityDrop.intensityChangePct, 1, props.locale)}.`,
-    )
-  }
-  if (biggestGap) {
-    insights.push(
-      props.locale === 'zh'
-        ? `${biggestGap.country} 的消费端与生产端差值最高，为 ${formatSignedNumber(biggestGap.gapEnd, 2, props.locale)}。`
-        : `${biggestGap.country} ends with the largest consumption-production gap at ${formatSignedNumber(biggestGap.gapEnd, 2, props.locale)}.`,
-    )
-  }
-
-  return insights
-})
-
 const modeHeadline = computed(() => {
   if (mode.value === 'energy') {
-    return props.locale === 'zh' ? '能源结构如何重排' : 'How the energy mix is being reordered'
+    return props.locale === 'zh' ? '能源结构' : 'How the energy mix is being reordered'
   }
 
   if (mode.value === 'gap') {
-    return props.locale === 'zh' ? '把消费端排放算回来' : 'What changes when consumption is counted back in'
+    return props.locale === 'zh' ? '消费端排放' : 'What changes when consumption is counted back in'
   }
 
   if (mode.value === 'intensity') {
     return props.locale === 'zh' ? '单位 GDP 的排放负担' : 'How much carbon still rides on each unit of GDP'
   }
 
-  return props.locale === 'zh' ? '几个机制并排看' : 'A side-by-side look at the mechanisms'
+  return props.locale === 'zh' ? '并排比较' : 'A side-by-side look at the mechanisms'
 })
 
 const modeSubtitle = computed(() => {
@@ -368,7 +339,7 @@ const modeSubtitle = computed(() => {
   }
 
   return props.locale === 'zh'
-    ? '把可再生能源、碳强度和消费端差值放到一张并列表里。'
+    ? '可再生能源、碳强度和消费端差值比较'
     : 'Renewables, carbon intensity, and the consumption gap on a single comparison table.'
 })
 </script>
@@ -609,13 +580,6 @@ const modeSubtitle = computed(() => {
         </div>
       </div>
 
-      <div v-if="compareInsights.length" class="compare-insights">
-        <p class="selection-title">{{ copy.compareTitle }}</p>
-        <ul>
-          <li v-for="insight in compareInsights" :key="insight">{{ insight }}</li>
-        </ul>
-      </div>
-      <p class="mechanism-missing-note">{{ copy.missingNote }}</p>
     </template>
   </div>
 </template>
