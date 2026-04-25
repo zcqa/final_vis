@@ -103,6 +103,31 @@ p {
   align-items: center;
 }
 
+.site-nav {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.site-nav__button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  padding: 8px 13px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.site-nav__button--active {
+  background: rgba(31, 143, 106, 0.14);
+  color: var(--accent-strong);
+}
+
 .hero__copy h1 {
   margin-top: 14px;
   font-size: clamp(2.3rem, 4vw, 4.5rem);
@@ -208,6 +233,11 @@ p {
 
 .atlas-stage {
   margin-top: 22px;
+}
+
+.page-panel {
+  padding-top: 14px;
+  border-top: 1px solid rgba(35, 48, 45, 0.1);
 }
 
 .atlas-stage__header-actions {

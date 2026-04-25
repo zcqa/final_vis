@@ -7,25 +7,25 @@ const props = defineProps<{
   title: string
   lead: string
   summary: string
+  activePage: 'story' | 'explore'
 }>()
 
 const emit = defineEmits<{
   'set-locale': [locale: Locale]
-  'jump-story': []
-  'jump-atlas': []
+  navigate: [page: 'story' | 'explore']
 }>()
 
 const copy = computed(() =>
   props.locale === 'zh'
     ? {
         eyebrow: '增长与排放',
-        storyButton: '开始阅读 ↓',
-        atlasButton: '跳到数据探索',
+        storyButton: '阅读故事',
+        atlasButton: '数据探索',
       }
     : {
         eyebrow: 'Growth and emissions',
-        storyButton: 'Scroll to begin ↓',
-        atlasButton: 'Jump to data explorer',
+        storyButton: 'Story',
+        atlasButton: 'Data explorer',
       },
 )
 </script>
@@ -33,7 +33,22 @@ const copy = computed(() =>
 <template>
   <header class="hero">
     <div class="hero__topbar">
-      <div></div>
+      <nav class="site-nav" aria-label="Main navigation">
+        <button
+          type="button"
+          :class="['site-nav__button', { 'site-nav__button--active': activePage === 'story' }]"
+          @click="emit('navigate', 'story')"
+        >
+          {{ copy.storyButton }}
+        </button>
+        <button
+          type="button"
+          :class="['site-nav__button', { 'site-nav__button--active': activePage === 'explore' }]"
+          @click="emit('navigate', 'explore')"
+        >
+          {{ copy.atlasButton }}
+        </button>
+      </nav>
       <div class="language-switch" role="group" aria-label="Language switch">
         <button
           type="button"
@@ -61,10 +76,10 @@ const copy = computed(() =>
       <p class="hero__summary">{{ summary }}</p>
 
       <div class="hero__actions">
-        <button type="button" class="hero-button hero-button--primary" @click="emit('jump-story')">
+        <button type="button" class="hero-button hero-button--primary" @click="emit('navigate', 'story')">
           {{ copy.storyButton }}
         </button>
-        <button type="button" class="hero-link" @click="emit('jump-atlas')">
+        <button type="button" class="hero-link" @click="emit('navigate', 'explore')">
           {{ copy.atlasButton }}
         </button>
       </div>

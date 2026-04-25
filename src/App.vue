@@ -111,6 +111,9 @@ interface TypologyCard {
 const locale = ref<Locale>('zh')
 const loading = ref(true)
 const errorMessage = ref('')
+const currentPage = ref<'story' | 'explore'>(
+  typeof window !== 'undefined' && window.location.hash === '#explore' ? 'explore' : 'story',
+)
 const records = ref<CountryYearRecord[]>([])
 const summaries = ref<CountrySummary[]>([])
 const meta = ref<DataMeta | null>(null)
@@ -133,12 +136,10 @@ const copy = computed(() =>
     ? {
         title: '增长了，排放还会继续涨吗？',
         lead: '从国家尺度去看，哪些地方已经开始把增长和排放拉开，哪些还没有。',
-        storyFocus: '当前章节',
-        storyHint: '筛选条件已经切到这一章对应的国家和年份。',
         reset: '重置探索',
         atlasEyebrow: 'Data Explorer',
         atlasTitle: '自由探索：全球国家轨迹',
-        atlasLead: '把年份、指标和国家换一换，看看前面的判断在别的切片下是否依然成立。',
+        atlasLead: '选择年份、指标和国家，比较增长与排放在不同地区的走向。',
         search: '搜索国家',
         searchPlaceholder: '中国、Germany、USA...',
         region: '地区',
@@ -173,12 +174,10 @@ const copy = computed(() =>
     : {
         title: 'When economies grow, do emissions still have to rise?',
         lead: 'At the country scale, which places have started to pull growth away from emissions, and which ones have not?',
-        storyFocus: 'Current chapter',
-        storyHint: 'The filters below have already been switched to the country set and time window used in this chapter.',
         reset: 'Reset exploration',
         atlasEyebrow: 'Data Explorer',
         atlasTitle: 'Free exploration: global country trajectories',
-        atlasLead: 'Change the years, swap the metric, and add countries to see whether the earlier reading still holds under different slices.',
+        atlasLead: 'Choose years, metrics, and countries to compare how growth and emissions move across regions.',
         search: 'Search country',
         searchPlaceholder: 'China, Germany, USA...',
         region: 'Region',
@@ -406,22 +405,6 @@ const activeStoryChapter = computed(
     orderedStoryChapters.value[0] ??
     null,
 )
-const activeStoryObject = computed(() => {
-  if (!activeStory.value) {
-    return null
-  }
-
-  const chapter = orderedStoryChapters.value.find((candidate) => candidate.id === activeStory.value)
-  if (!chapter) {
-    return null
-  }
-
-  return {
-    label: chapter.title[locale.value],
-    description: chapter.focusLabel[locale.value],
-  }
-})
-
 const metricOptions = computed(() =>
   (Object.keys(metricDefinitions) as MetricKey[]).map((value) => ({
     value,
@@ -878,6 +861,14 @@ function applyTypologyFocus(trajectoryType: CountrySummary['trajectoryType']) {
 function scrollToSection(sectionId: string) {
   document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
+
+function navigateToPage(page: 'story' | 'explore') {
+  currentPage.value = page
+  if (typeof window !== 'undefined') {
+    window.location.hash = page === 'explore' ? 'explore' : 'story'
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
 </script>
 
 <template>
@@ -902,21 +893,23 @@ function scrollToSection(sectionId: string) {
         :title="copy.title"
         :lead="copy.lead"
         :summary="heroSummary"
+        :active-page="currentPage"
         @set-locale="locale = $event"
-        @jump-story="scrollToSection('story-section')"
-        @jump-atlas="scrollToSection('atlas-section')"
+        @navigate="navigateToPage"
       />
 
       <StorySection
+        v-if="currentPage === 'story'"
         :chapters="orderedStoryChapters"
         :locale="locale"
         :active-story-id="activeStory"
         :preview="storyPreview"
         @activate="activateStoryFromChapter"
-        @jump-atlas="scrollToSection('atlas-section')"
+        @jump-atlas="navigateToPage('explore')"
       />
 
-      <section id="atlas-section" class="atlas-stage">
+      <template v-else>
+      <section id="atlas-section" class="atlas-stage page-panel">
         <div class="section-heading">
           <div>
             <p class="eyebrow">{{ copy.atlasEyebrow }}</p>
@@ -928,11 +921,6 @@ function scrollToSection(sectionId: string) {
               {{ copy.reset }}
             </button>
           </div>
-        </div>
-
-        <div v-if="activeStoryObject" class="story-callout">
-          <p class="eyebrow">{{ copy.storyFocus }}</p>
-          <p><strong>{{ activeStoryObject.label }}</strong> · {{ activeStoryObject.description }} {{ copy.storyHint }}</p>
         </div>
 
         <div class="controls controls--toolbar">
@@ -1149,6 +1137,7 @@ function scrollToSection(sectionId: string) {
       <TypologySection :cards="typologyCards" :locale="locale" @focus-type="applyTypologyFocus" />
 
       <MethodSection :locale="locale" />
+      </template>
     </template>
   </div>
 </template>

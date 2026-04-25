@@ -25,8 +25,7 @@ const copy = computed(() =>
     ? {
         eyebrow: '故事',
         title: '六步读懂全球碳脱钩',
-        description:
-          '这不是一组可随意点击的案例，而是一条从全局判断到机制追问、再到自由验证的阅读路线。',
+        description: '从全球象限、典型国家到消费端修正，沿着数据轨迹读一次增长与排放的分离。',
         chapterLabel: '第',
         jumpAtlas: '进入数据探索',
         previewFallback: '章节图像正在加载。',
@@ -35,7 +34,7 @@ const copy = computed(() =>
         eyebrow: 'Story',
         title: 'A six-step guide to global carbon decoupling',
         description:
-          'This is not a loose set of cases. It is a reading path from global diagnosis to mechanism, then back to open exploration.',
+          'A path through global quadrants, country trajectories, and the consumption correction behind rich-country decoupling.',
         chapterLabel: 'Chapter',
         jumpAtlas: 'Open the data explorer',
         previewFallback: 'The chapter preview is loading.',
