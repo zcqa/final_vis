@@ -41,7 +41,7 @@ const copy = computed(() => {
     return props.locale === 'zh'
       ? {
           headline: '接下来，把判断交还给数据',
-          subtitle: '下方 Atlas 会保留完整控件。换年份、换指标、刷选国家，检查前面的故事是否仍然成立。',
+          subtitle: '探索模式中有完整控件。',
           xLabel: '人均 GDP 变化',
           yLabel: props.preview.metricLabel,
           stat: '开放探索',

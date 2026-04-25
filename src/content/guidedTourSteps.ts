@@ -210,8 +210,8 @@ export const guidedTourSteps: StoryChapterScript[] = [
     },
     body: {
       zh: [
-        '时间范围、排放指标、地区和收入组都可以重新选择。散点图支持缩放、点击和框选。',
-        '框选一组国家后，页面会计算它们的共同特征，包括主要地区、高收入占比、平均排放变化和消费端差值。',
+        '时间范围、排放指标、地区和收入组都可以重新选择。',
+        '框选一组国家后，可以查看它们的共同特征，包括主要地区、高收入占比、平均排放变化和消费端差值。',
       ],
       en: [
         'The time window, emissions metric, region, and income group can all be changed. The scatterplot supports zooming, clicking, and brushing.',
