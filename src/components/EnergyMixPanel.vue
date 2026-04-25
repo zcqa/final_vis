@@ -22,13 +22,19 @@ const copy = computed(() =>
         axisYear: '年份',
         axisShare: '占比 / 指标值',
         axisGap: '人均排放',
-        axisIntensity: 'CO2 / GDP',
+        axisIntensity: '吨 CO2 / 千美元 GDP',
         production: '生产端人均 CO2',
         consumption: '消费端人均 CO2',
+        productionChange: '生产端变化',
+        consumptionChange: '消费端变化',
         gap: '消费减生产',
-        carbonIntensity: '碳强度',
+        carbonIntensity: '碳强度水平',
+        carbonIntensityChange: '碳强度变化',
+        carbonIntensityUnit: '吨 CO2 / 千美元 GDP',
         lowCarbonElec: '低碳电力占比',
+        intensityNote: '这条线衡量每创造 1,000 美元 GDP 需要排放多少 CO2。线往下，说明经济活动变得更低碳；线持平或上升，说明增长仍然依赖较高排放。',
         compareTitle: '几个信号',
+        missingNote: 'N/A 表示该国家在当前年份范围内缺少能源结构、消费端排放或 GDP 字段。',
         headers: {
           country: '国家',
           renewables: '可再生能源',
@@ -51,13 +57,19 @@ const copy = computed(() =>
         axisYear: 'Year',
         axisShare: 'Share / value',
         axisGap: 'Emissions per capita',
-        axisIntensity: 'CO2 / GDP',
+        axisIntensity: 'tonnes CO2 / $1k GDP',
         production: 'Production CO2 / cap',
         consumption: 'Consumption CO2 / cap',
+        productionChange: 'Production change',
+        consumptionChange: 'Consumption change',
         gap: 'Consumption minus production',
-        carbonIntensity: 'Carbon intensity',
+        carbonIntensity: 'Carbon-intensity level',
+        carbonIntensityChange: 'Carbon-intensity change',
+        carbonIntensityUnit: 'tonnes CO2 / $1k GDP',
         lowCarbonElec: 'Low-carbon electricity',
+        intensityNote: 'This line measures how many tonnes of CO2 are emitted for every $1,000 of GDP. A falling line means the economy is becoming less carbon-intensive.',
         compareTitle: 'Signals',
+        missingNote: 'N/A means the selected country-year window lacks energy, consumption-emissions, or GDP fields.',
         headers: {
           country: 'Country',
           renewables: 'Renewables',
@@ -198,11 +210,31 @@ const gapConsumptionLine = line<{ year: number; consumption: number }>()
 const gapStart = computed(() => gapRows.value[0] ?? null)
 const gapEnd = computed(() => gapRows.value.at(-1) ?? null)
 
+function carbonIntensityValue(record: { carbonIntensity: number | null; co2: number | null; gdp: number | null }) {
+  if (record.carbonIntensity !== null && record.carbonIntensity > 0) {
+    return record.carbonIntensity
+  }
+
+  if (record.co2 === null || record.gdp === null || record.gdp === 0) {
+    return null
+  }
+
+  return (record.co2 * 1_000_000) / (record.gdp / 1_000)
+}
+
+function percentChange(start: number | null, end: number | null) {
+  if (start === null || end === null || start === 0) {
+    return null
+  }
+
+  return ((end - start) / start) * 100
+}
+
 const intensityRows = computed(() =>
   primarySeries.value
     .map((record) => ({
       year: record.year,
-      intensity: record.carbonIntensity,
+      intensity: carbonIntensityValue(record),
     }))
     .filter((row): row is { year: number; intensity: number } => row.intensity !== null),
 )
@@ -232,11 +264,18 @@ const compareRows = computed(() =>
         start?.renewablesShareEnergy !== null && end?.renewablesShareEnergy !== null
           ? (end?.renewablesShareEnergy ?? 0) - start.renewablesShareEnergy
           : null
+      const startIntensity = start ? carbonIntensityValue(start) : null
+      const endIntensity = end ? carbonIntensityValue(end) : null
       const intensityChangePct =
-        start?.carbonIntensity !== null && end?.carbonIntensity !== null && start.carbonIntensity !== 0
-          ? (((end?.carbonIntensity ?? 0) - start.carbonIntensity) / start.carbonIntensity) * 100
+        startIntensity !== null && endIntensity !== null && startIntensity !== 0
+          ? ((endIntensity - startIntensity) / startIntensity) * 100
           : null
       const gapEndValue = end?.consumptionProductionGapPerCapita ?? null
+      const productionChangePct = percentChange(start?.co2PerCapita ?? null, end?.co2PerCapita ?? null)
+      const consumptionChangePct = percentChange(
+        start?.consumptionCo2PerCapita ?? null,
+        end?.consumptionCo2PerCapita ?? null,
+      )
 
       return {
         country: group.country,
@@ -244,10 +283,25 @@ const compareRows = computed(() =>
         renewablesDelta,
         intensityChangePct,
         gapEnd: gapEndValue,
+        productionChangePct,
+        consumptionChangePct,
       }
     })
     .sort((left, right) => (left.intensityChangePct ?? Infinity) - (right.intensityChangePct ?? Infinity)),
 )
+
+const dumbbellDomain = computed(() =>
+  domainWithPadding(
+    compareRows.value.flatMap((row) =>
+      [row.productionChangePct, row.consumptionChangePct].filter(
+        (value): value is number => value !== null && Number.isFinite(value),
+      ),
+    ),
+    true,
+  ),
+)
+
+const dumbbellScale = computed(() => scaleLinear().domain(dumbbellDomain.value).range([0, 100]))
 
 const compareInsights = computed(() => {
   if (compareRows.value.length < 2) {
@@ -309,8 +363,8 @@ const modeSubtitle = computed(() => {
 
   if (mode.value === 'intensity') {
     return props.locale === 'zh'
-      ? `${primaryCountryName.value} 的碳强度变化，以及低碳电力是否同步抬升。`
-      : `${primaryCountryName.value}, tracking carbon intensity alongside low-carbon electricity.`
+      ? `${primaryCountryName.value} 每创造 1,000 美元 GDP 对应的 CO2 排放，以及低碳电力是否同步抬升。`
+      : `${primaryCountryName.value}, tracking tonnes of CO2 per $1,000 of GDP alongside low-carbon electricity.`
   }
 
   return props.locale === 'zh'
@@ -469,7 +523,8 @@ const modeSubtitle = computed(() => {
       <div class="mechanism-stats">
         <div class="mechanism-stat">
           <span>{{ copy.carbonIntensity }}</span>
-          <strong>{{ formatNumber(intensityStart?.intensity ?? null, 6, locale) }} → {{ formatNumber(intensityEnd?.intensity ?? null, 6, locale) }}</strong>
+          <strong>{{ formatNumber(intensityStart?.intensity ?? null, 3, locale) }} → {{ formatNumber(intensityEnd?.intensity ?? null, 3, locale) }}</strong>
+          <small>{{ copy.carbonIntensityUnit }}</small>
         </div>
         <div class="mechanism-stat">
           <span>{{ copy.lowCarbonElec }}</span>
@@ -480,13 +535,55 @@ const modeSubtitle = computed(() => {
           <strong>{{ formatShare(primarySeries[0]?.renewablesShareEnergy ?? null, 1, locale) }} → {{ formatShare(primarySeries.at(-1)?.renewablesShareEnergy ?? null, 1, locale) }}</strong>
         </div>
         <div class="mechanism-stat">
-          <span>{{ copy.carbonIntensity }}</span>
+          <span>{{ copy.carbonIntensityChange }}</span>
           <strong>{{ formatSignedPercent(intensityStart && intensityEnd && intensityStart.intensity !== 0 ? ((intensityEnd.intensity - intensityStart.intensity) / intensityStart.intensity) * 100 : null, 1, locale) }}</strong>
         </div>
       </div>
+      <p class="mechanism-missing-note">{{ copy.intensityNote }}</p>
     </template>
 
     <template v-else>
+      <div class="dumbbell-panel">
+        <div class="dumbbell-panel__header">
+          <span>{{ copy.productionChange }}</span>
+          <strong>{{ copy.consumptionChange }}</strong>
+        </div>
+        <div class="dumbbell-list">
+          <div
+            v-for="row in compareRows.filter((item) => item.productionChangePct !== null || item.consumptionChangePct !== null)"
+            :key="`${row.isoCode}-dumbbell`"
+            class="dumbbell-row"
+          >
+            <span class="dumbbell-row__country">{{ row.country }}</span>
+            <div class="dumbbell-row__track">
+              <span
+                v-if="row.productionChangePct !== null && row.consumptionChangePct !== null"
+                class="dumbbell-row__connector"
+                :style="{
+                  left: `${Math.min(dumbbellScale(row.productionChangePct), dumbbellScale(row.consumptionChangePct))}%`,
+                  width: `${Math.abs(dumbbellScale(row.consumptionChangePct) - dumbbellScale(row.productionChangePct))}%`,
+                }"
+              ></span>
+              <span
+                v-if="row.productionChangePct !== null"
+                class="dumbbell-row__dot dumbbell-row__dot--production"
+                :style="{ left: `${dumbbellScale(row.productionChangePct)}%` }"
+                :title="`${copy.productionChange}: ${formatSignedPercent(row.productionChangePct, 1, locale)}`"
+              ></span>
+              <span
+                v-if="row.consumptionChangePct !== null"
+                class="dumbbell-row__dot dumbbell-row__dot--consumption"
+                :style="{ left: `${dumbbellScale(row.consumptionChangePct)}%` }"
+                :title="`${copy.consumptionChange}: ${formatSignedPercent(row.consumptionChangePct, 1, locale)}`"
+              ></span>
+            </div>
+            <span class="dumbbell-row__value">
+              {{ formatSignedPercent(row.productionChangePct, 0, locale) }} / {{ formatSignedPercent(row.consumptionChangePct, 0, locale) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div class="compare-table">
         <div class="compare-table__header compare-table__row compare-table__row--mechanism">
           <span>{{ copy.headers.country }}</span>
@@ -518,6 +615,7 @@ const modeSubtitle = computed(() => {
           <li v-for="insight in compareInsights" :key="insight">{{ insight }}</li>
         </ul>
       </div>
+      <p class="mechanism-missing-note">{{ copy.missingNote }}</p>
     </template>
   </div>
 </template>

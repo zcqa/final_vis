@@ -659,6 +659,12 @@ const activePoint = computed(
   () => overviewPoints.value.find((point) => point.isoCode === activeCountryIso.value) ?? null,
 )
 
+const selectedOverviewPoints = computed(() =>
+  selectedCountries.value
+    .map((isoCode) => overviewPoints.value.find((point) => point.isoCode === isoCode) ?? null)
+    .filter((point): point is OverviewPoint => point !== null),
+)
+
 const activeStoryAnnotations = computed(() =>
   activeStory.value ? storyAnnotationMap[locale.value][activeStory.value] ?? [] : [],
 )
@@ -802,7 +808,7 @@ function brushSelectCountries(isoCodes: string[]) {
     return
   }
 
-  selectedCountries.value = [...new Set([...isoCodes, ...selectedCountries.value])].slice(0, 4)
+  selectedCountries.value = [...new Set(isoCodes)].slice(0, 24)
 }
 
 function removeCountry(isoCode: string) {
@@ -1102,6 +1108,7 @@ function scrollToSection(sectionId: string) {
             <InsightPanel
               :point="activePoint"
               :selected-countries="selectedCountryObjects"
+              :selected-points="selectedOverviewPoints"
               :metric-label="currentMetricLabel"
               :locale="locale"
             />

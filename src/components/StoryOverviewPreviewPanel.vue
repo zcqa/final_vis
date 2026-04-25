@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { scaleLinear, scaleSqrt } from 'd3-scale'
+import EvidenceStrip from './EvidenceStrip.vue'
 import type { Locale, OverviewPoint, StoryChapterPreview } from '../types'
 import { formatSignedPercent } from '../utils/formatters'
 
@@ -255,5 +256,7 @@ function updateTooltip(event: MouseEvent, point: OverviewPoint) {
       <strong>{{ locale === 'zh' ? '时间窗口：' : 'Window: ' }}</strong>
       {{ preview.startYear }} → {{ preview.endYear }}
     </p>
+
+    <EvidenceStrip v-if="preview.seriesGroups.length" :preview="preview" :locale="locale" />
   </div>
 </template>

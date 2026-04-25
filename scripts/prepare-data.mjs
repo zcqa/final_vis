@@ -103,14 +103,6 @@ function round(value, digits = 3) {
   return Number(value.toFixed(digits))
 }
 
-function safeDivide(numerator, denominator) {
-  if (numerator === null || denominator === null || denominator === 0) {
-    return null
-  }
-
-  return numerator / denominator
-}
-
 function subtract(left, right) {
   if (left === null || right === null) {
     return null
@@ -133,6 +125,16 @@ function computePerCapita(gdp, population) {
   }
 
   return gdp / population
+}
+
+function computeCarbonIntensity(co2MillionTonnes, gdp) {
+  if (co2MillionTonnes === null || gdp === null || gdp === 0) {
+    return null
+  }
+
+  // OWID CO2 is in million tonnes and GDP is in constant international dollars.
+  // Scaling to tonnes per $1,000 GDP keeps the displayed values interpretable.
+  return (co2MillionTonnes * 1_000_000) / (gdp / 1_000)
 }
 
 function findPeak(rows, accessor) {
@@ -327,7 +329,7 @@ for (const row of energyRows) {
 const mergedRows = Array.from(mergedByCountryYear.values())
   .map((record) => {
     const gdpPerCapita = computePerCapita(record.gdp ?? null, record.population ?? null)
-    const carbonIntensity = safeDivide(record.co2 ?? null, record.gdp ?? null)
+    const carbonIntensity = computeCarbonIntensity(record.co2 ?? null, record.gdp ?? null)
     const consumptionProductionGap = subtract(record.consumptionCo2 ?? null, record.co2 ?? null)
     const consumptionProductionGapPerCapita = subtract(
       record.consumptionCo2PerCapita ?? null,

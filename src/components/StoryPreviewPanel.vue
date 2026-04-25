@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { line } from 'd3-shape'
 import { scaleLinear } from 'd3-scale'
+import EvidenceStrip from './EvidenceStrip.vue'
 import type { CountryYearRecord, Locale, MetricKey, StoryChapterPreview } from '../types'
 import { formatNumber } from '../utils/formatters'
 
@@ -616,6 +617,8 @@ function clearTooltip() {
     </svg>
 
     <p class="story-preview__flow"><strong>{{ copy.flowLabel }}：</strong>{{ copy.flowText }}</p>
+
+    <EvidenceStrip :preview="preview" :locale="locale" />
 
     <div v-if="tooltip" class="chart-tooltip story-preview__tooltip" :style="tooltipStyle">
       <div class="chart-tooltip__top">

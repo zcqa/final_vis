@@ -6,6 +6,7 @@ import { formatCompactNumber, formatSignedNumber, formatSignedPercent } from '..
 const props = defineProps<{
   point: OverviewPoint | null
   selectedCountries: CountryOption[]
+  selectedPoints: OverviewPoint[]
   metricLabel: string
   locale: Locale
 }>()
@@ -14,6 +15,16 @@ const copy = computed(() =>
   props.locale === 'zh'
     ? {
         empty: '点一个国家，这里会出现一张简短的国家卡。',
+        selectionTitle: '选择集合',
+        selectionIntro: '这组国家的共同特征',
+        selectedCount: '选中国家',
+        topRegion: '主要地区',
+        highIncomeShare: '高收入占比',
+        avgGdp: '平均 GDP 变化',
+        avgMetric: '平均排放变化',
+        avgRenewables: '平均可再生能源变化',
+        consumptionAboveProduction: '消费端高于生产端',
+        countries: '个国家',
         period: '核心指标变化',
         compare: '正在比较',
         gdp: '人均 GDP',
@@ -24,6 +35,16 @@ const copy = computed(() =>
       }
     : {
         empty: 'Click a country to load a compact country card here.',
+        selectionTitle: 'Selection summary',
+        selectionIntro: 'What this group has in common',
+        selectedCount: 'Selected countries',
+        topRegion: 'Main region',
+        highIncomeShare: 'High-income share',
+        avgGdp: 'Avg. GDP change',
+        avgMetric: 'Avg. emissions change',
+        avgRenewables: 'Avg. renewables change',
+        consumptionAboveProduction: 'Consumption above production',
+        countries: 'countries',
         period: 'Key changes',
         compare: 'Countries in view',
         gdp: 'GDP per capita',
@@ -124,11 +145,85 @@ const briefText = computed(() => {
 
   return `${point.country} has not settled into a stable decoupling path yet, so it reads better as a boundary case.`
 })
+
+function average(values: Array<number | null>) {
+  const numericValues = values.filter((value): value is number => value !== null && Number.isFinite(value))
+  if (!numericValues.length) {
+    return null
+  }
+
+  return numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length
+}
+
+const selectionSummary = computed(() => {
+  const points = props.selectedPoints
+  if (points.length <= 1) {
+    return null
+  }
+
+  const regionCounts = new Map<string, number>()
+  for (const point of points) {
+    regionCounts.set(point.region, (regionCounts.get(point.region) ?? 0) + 1)
+  }
+
+  const topRegion = [...regionCounts.entries()].sort((left, right) => right[1] - left[1])[0] ?? null
+  const highIncomeCount = points.filter((point) => point.incomeLevel === 'High income').length
+  const consumptionAboveProductionCount = points.filter(
+    (point) => (point.endRecord.consumptionProductionGapPerCapita ?? 0) > 0,
+  ).length
+
+  return {
+    count: points.length,
+    topRegionName: topRegion?.[0] ?? null,
+    topRegionCount: topRegion?.[1] ?? 0,
+    highIncomePct: (highIncomeCount / points.length) * 100,
+    avgGdpChangePct: average(points.map((point) => point.gdpChangePct)),
+    avgMetricChangePct: average(points.map((point) => point.metricChangePct)),
+    avgRenewablesChangePts: average(points.map((point) => point.renewablesChangePts)),
+    consumptionAboveProductionCount,
+  }
+})
 </script>
 
 <template>
   <div class="chart-card fact-box">
-    <div v-if="point" class="fact-box__layout">
+    <div v-if="selectionSummary" class="selection-summary">
+      <div class="fact-box__identity">
+        <div class="fact-box__meta">{{ copy.selectionTitle }}</div>
+        <h2>{{ selectionSummary.count }} {{ copy.countries }}</h2>
+        <p class="fact-box__period">{{ copy.selectionIntro }}</p>
+      </div>
+
+      <div class="selection-summary__grid">
+        <div class="fact-box__metric">
+          <span>{{ copy.topRegion }}</span>
+          <strong>{{ selectionSummary.topRegionName ?? 'N/A' }}</strong>
+          <small>{{ selectionSummary.topRegionCount }} / {{ selectionSummary.count }}</small>
+        </div>
+        <div class="fact-box__metric">
+          <span>{{ copy.highIncomeShare }}</span>
+          <strong>{{ formatSignedPercent(selectionSummary.highIncomePct, 1, locale).replace('+', '') }}</strong>
+        </div>
+        <div class="fact-box__metric">
+          <span>{{ copy.avgGdp }}</span>
+          <strong>{{ formatSignedPercent(selectionSummary.avgGdpChangePct, 1, locale) }}</strong>
+        </div>
+        <div class="fact-box__metric">
+          <span>{{ copy.avgMetric }}</span>
+          <strong>{{ formatSignedPercent(selectionSummary.avgMetricChangePct, 1, locale) }}</strong>
+        </div>
+        <div class="fact-box__metric">
+          <span>{{ copy.avgRenewables }}</span>
+          <strong>{{ formatSignedNumber(selectionSummary.avgRenewablesChangePts, 1, locale) }} pts</strong>
+        </div>
+        <div class="fact-box__metric">
+          <span>{{ copy.consumptionAboveProduction }}</span>
+          <strong>{{ selectionSummary.consumptionAboveProductionCount }} / {{ selectionSummary.count }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="point" class="fact-box__layout">
       <div class="fact-box__identity">
         <div class="fact-box__meta">{{ point.isoCode }}</div>
         <h2>{{ point.country }}</h2>

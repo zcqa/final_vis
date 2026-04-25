@@ -42,6 +42,7 @@ const copy = computed(() =>
         medianGdp: 'GDP 中位变化',
         medianCo2: '人均 CO2 中位变化',
         focusButton: '查看这组国家',
+        ruleLabel: '规则',
       }
     : {
         eyebrow: 'Patterns',
@@ -52,6 +53,23 @@ const copy = computed(() =>
         medianGdp: 'Median GDP change',
         medianCo2: 'Median CO2 / cap change',
         focusButton: 'Open this group',
+        ruleLabel: 'Rule',
+      },
+)
+
+const ruleText = computed<Record<CountrySummary['trajectoryType'], string>>(() =>
+  props.locale === 'zh'
+    ? {
+        'absolute-decoupling': 'GDP > 0，且人均 CO2 < 0',
+        'relative-decoupling': 'GDP > 0，CO2 增速低于 GDP',
+        'growth-with-emissions': 'GDP > 0，CO2 同步或更快上升',
+        'volatile-transition': '出现峰值或回落，但末端不稳定',
+      }
+    : {
+        'absolute-decoupling': 'GDP > 0 and CO2 / cap < 0',
+        'relative-decoupling': 'GDP > 0; CO2 rises slower than GDP',
+        'growth-with-emissions': 'GDP > 0; CO2 rises with or faster than GDP',
+        'volatile-transition': 'Peak or decline appears, but the end remains unstable',
       },
 )
 
@@ -128,6 +146,10 @@ function miniPointY(values: TypologyPreviewSeries['values'], field: 'start' | 'e
         <div class="typology-card__header">
           <h3>{{ card.title }}</h3>
           <p>{{ card.description }}</p>
+          <div class="typology-rule">
+            <span>{{ copy.ruleLabel }}</span>
+            <strong>{{ ruleText[card.id] }}</strong>
+          </div>
         </div>
 
         <div class="typology-card__meta">
