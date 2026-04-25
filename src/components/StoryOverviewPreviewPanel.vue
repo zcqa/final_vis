@@ -81,7 +81,7 @@ const copy = computed(() => {
         hint:
           props.preview.mode === 'absolute'
             ? '绿色点是经济增长且人均排放下降的国家。'
-            : '十字线把四种方向分开：右下角最关键。',
+            : '',
         country: '国家/地区',
         status: '类型',
         gdp: 'GDP 变化',

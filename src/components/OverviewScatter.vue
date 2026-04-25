@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { extent } from 'd3-array'
 import { Delaunay } from 'd3-delaunay'
 import { scaleLinear, scaleSqrt } from 'd3-scale'
@@ -13,6 +13,7 @@ const props = defineProps<{
   metricLabel: string
   startYear: number
   endYear: number
+  isPlayingTimeline: boolean
   locale: Locale
   annotations: Array<{
     isoCode: string
@@ -65,6 +66,23 @@ interface DisplayPoint {
   priority: number
 }
 
+interface TrailSample {
+  year: number
+  gdpChangePct: number
+  metricChangePct: number
+}
+
+interface MotionTrail {
+  isoCode: string
+  path: string
+  className: string
+  nodes: Array<{
+    x: number
+    y: number
+    opacity: number
+  }>
+}
+
 const copy = computed(() =>
   props.locale === 'zh'
     ? {
@@ -93,7 +111,7 @@ const copy = computed(() =>
         statusLowHigh: '低增长 / 高排放',
         legendTitle: '颜色',
         legendPopulation:
-          '点面积已做上限约束；超出核心范围的国家会贴边显示。拖拽可框选，单击已选国家可取消，比较组最多保留 4 个。',
+          '点面积已做上限约束；超出核心范围的国家会贴边显示。播放时，选中和重点国家会留下最近年份的移动轨迹。',
         zoomIn: '放大',
         zoomOut: '缩小',
         zoomReset: '还原',
@@ -125,7 +143,7 @@ const copy = computed(() =>
         statusLowHigh: 'Low growth / higher emissions',
         legendTitle: 'Color',
         legendPopulation:
-          'Bubble size is capped; countries outside the core range stay pinned to the edge. Drag to brush, click a selected country again to remove it, and keep up to four comparison cases.',
+          'Bubble size is capped; countries outside the core range stay pinned to the edge. During playback, selected and featured countries leave short recent-year trails.',
         zoomIn: 'Zoom in',
         zoomOut: 'Zoom out',
         zoomReset: 'Reset',
@@ -146,6 +164,7 @@ const tooltipPoint = ref<OverviewPoint | null>(null)
 const tooltipStyle = ref({ left: '0px', top: '0px' })
 const localHoverIso = ref<string | null>(null)
 const brush = ref<BrushState | null>(null)
+const trailHistory = ref<Map<string, TrailSample[]>>(new Map())
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
@@ -286,6 +305,8 @@ const displayPoints = computed<DisplayPoint[]>(() =>
       const clampedY = clampNumber(point.metricChangePct, yDomain.value[0], yDomain.value[1])
       const baseX = xScale.value(clampedX)
       const baseY = yScale.value(clampedY)
+      const screenX = transformX(baseX)
+      const screenY = transformY(baseY)
       const isSelected = selectedSet.value.has(point.isoCode)
       const isHovered = activeHoverIso.value === point.isoCode
       const radius = radiusScale.value(point.endRecord.population ?? 0) + (isSelected || isHovered ? 1.4 : 0)
@@ -302,8 +323,8 @@ const displayPoints = computed<DisplayPoint[]>(() =>
         radius,
         baseX,
         baseY,
-        screenX: transformX(baseX),
-        screenY: transformY(baseY),
+        screenX,
+        screenY,
         clippedLeft,
         clippedRight,
         clippedTop,
@@ -323,6 +344,8 @@ const displayPoints = computed<DisplayPoint[]>(() =>
       return (left.point.endRecord.population ?? 0) - (right.point.endRecord.population ?? 0)
     }),
 )
+
+const displayPointMap = computed(() => new Map(displayPoints.value.map((point) => [point.isoCode, point])))
 
 const visibleHoverPoints = computed(() =>
   displayPoints.value.filter(
@@ -402,6 +425,69 @@ const legendItems = computed(() => [
   { key: 'boundary', label: props.locale === 'zh' ? '其他边界样本' : 'Other boundary cases' },
 ])
 
+function resetMotionTrails() {
+  trailHistory.value = new Map()
+}
+
+function appendMotionTrailFrame() {
+  const nextHistory = new Map(trailHistory.value)
+  const visibleCountries = new Set(props.points.map((point) => point.isoCode))
+
+  props.points.forEach((point) => {
+    const samples = nextHistory.get(point.isoCode) ?? []
+    const lastSample = samples.at(-1)
+    const nextSample = {
+      year: point.endYear,
+      gdpChangePct: point.gdpChangePct,
+      metricChangePct: point.metricChangePct,
+    }
+
+    if (lastSample?.year === point.endYear) {
+      nextHistory.set(point.isoCode, [...samples.slice(0, -1), nextSample].slice(-10))
+      return
+    }
+
+    nextHistory.set(point.isoCode, [...samples, nextSample].slice(-10))
+  })
+
+  Array.from(nextHistory.keys()).forEach((isoCode) => {
+    if (!visibleCountries.has(isoCode)) {
+      nextHistory.delete(isoCode)
+    }
+  })
+
+  trailHistory.value = nextHistory
+}
+
+watch(
+  () => props.isPlayingTimeline,
+  (isPlaying) => {
+    if (isPlaying) {
+      resetMotionTrails()
+      appendMotionTrailFrame()
+    }
+  },
+)
+
+watch(
+  () => props.endYear,
+  () => {
+    if (props.isPlayingTimeline) {
+      appendMotionTrailFrame()
+      return
+    }
+
+    resetMotionTrails()
+  },
+)
+
+watch(
+  () => [props.startYear, props.metricLabel],
+  () => {
+    resetMotionTrails()
+  },
+)
+
 function pointClass(point: DisplayPoint) {
   const classes = ['point', `point--${point.status}`]
 
@@ -421,6 +507,57 @@ function pointClass(point: DisplayPoint) {
 
   return classes.join(' ')
 }
+
+function trailClass(point: DisplayPoint) {
+  const classes = ['motion-trail', `motion-trail--${point.status}`]
+
+  if (point.isGhost) {
+    classes.push('motion-trail--ghost')
+  }
+
+  if (point.isHovered) {
+    classes.push('motion-trail--hovered')
+  } else if (point.isSelected) {
+    classes.push('motion-trail--selected')
+  }
+
+  return classes.join(' ')
+}
+
+const motionTrails = computed<MotionTrail[]>(() =>
+  Array.from(trailHistory.value.entries()).flatMap(([isoCode, samples]) => {
+    const point = displayPointMap.value.get(isoCode)
+    if (!point || samples.length < 2) {
+      return []
+    }
+
+    const showFeaturedTrail = focusSet.value.size === 0 && point.featured
+    if (!point.isSelected && !point.isHovered && !showFeaturedTrail) {
+      return []
+    }
+
+    const nodes = samples.map((sample, index) => {
+      const clampedX = clampNumber(sample.gdpChangePct, xDomain.value[0], xDomain.value[1])
+      const clampedY = clampNumber(sample.metricChangePct, yDomain.value[0], yDomain.value[1])
+      const ageRatio = samples.length <= 1 ? 1 : index / (samples.length - 1)
+
+      return {
+        x: transformX(xScale.value(clampedX)),
+        y: transformY(yScale.value(clampedY)),
+        opacity: 0.16 + ageRatio * 0.74,
+      }
+    })
+
+    return [
+      {
+        isoCode,
+        path: nodes.map((node, index) => `${index === 0 ? 'M' : 'L'} ${node.x} ${node.y}`).join(' '),
+        className: trailClass(point),
+        nodes,
+      },
+    ]
+  }),
+)
 
 function statusLabel(point: OverviewPoint) {
   if (point.status === 'decoupled') {
@@ -693,6 +830,19 @@ function handleWheel(event: WheelEvent) {
           </text>
 
           <g clip-path="url(#overview-scatter-clip)">
+            <g v-for="trail in motionTrails" :key="`${trail.isoCode}-trail`" class="motion-trail-group">
+              <path :class="trail.className" :d="trail.path" />
+              <circle
+                v-for="(node, index) in trail.nodes"
+                :key="`${trail.isoCode}-trail-node-${index}`"
+                class="motion-trail__node"
+                :cx="node.x"
+                :cy="node.y"
+                :r="index === trail.nodes.length - 1 ? 3.2 : 2.2"
+                :style="{ opacity: node.opacity }"
+              />
+            </g>
+
             <g v-for="point in displayPoints" :key="point.isoCode">
               <path
                 v-if="point.isClipped"

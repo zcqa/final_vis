@@ -18,14 +18,12 @@ const emit = defineEmits<{
 const copy = computed(() =>
   props.locale === 'zh'
     ? {
-        eyebrow: '增长与排放',
-        storyButton: '阅读故事',
-        atlasButton: '数据探索',
+        storyButton: '阅读',
+        atlasButton: '探索',
       }
     : {
-        eyebrow: 'Growth and emissions',
-        storyButton: 'Story',
-        atlasButton: 'Data explorer',
+        storyButton: 'Read',
+        atlasButton: 'Explore',
       },
 )
 </script>
@@ -68,21 +66,12 @@ const copy = computed(() =>
     </div>
 
     <div class="hero__copy">
-      <p class="eyebrow">{{ copy.eyebrow }}</p>
       <h1>{{ title }}</h1>
       <p class="hero__lead">
         {{ lead }}
       </p>
       <p class="hero__summary">{{ summary }}</p>
 
-      <div class="hero__actions">
-        <button type="button" class="hero-button hero-button--primary" @click="emit('navigate', 'story')">
-          {{ copy.storyButton }}
-        </button>
-        <button type="button" class="hero-link" @click="emit('navigate', 'explore')">
-          {{ copy.atlasButton }}
-        </button>
-      </div>
     </div>
   </header>
 </template>

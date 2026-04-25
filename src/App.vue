@@ -134,7 +134,7 @@ let playbackTimer: number | null = null
 const copy = computed(() =>
   locale.value === 'zh'
     ? {
-        title: '增长了，排放还会继续涨吗？',
+        title: '谁真正实现了碳脱钩',
         lead: '从国家尺度去看，哪些地方已经开始把增长和排放拉开，哪些还没有。',
         reset: '重置探索',
         atlasEyebrow: 'Data Explorer',
@@ -172,7 +172,7 @@ const copy = computed(() =>
         none: '暂无',
       }
     : {
-        title: 'When economies grow, do emissions still have to rise?',
+        title: 'Who has really decoupled carbon from growth?',
         lead: 'At the country scale, which places have started to pull growth away from emissions, and which ones have not?',
         reset: 'Reset exploration',
         atlasEyebrow: 'Data Explorer',
@@ -297,7 +297,7 @@ async function loadData() {
     summaries.value = summaryJson
     startYear.value = metaJson.baselineYear
     endYear.value = metaJson.latestYear
-    selectedCountries.value = [metaJson.featuredCountries[0] ?? 'DEU'].filter(Boolean)
+    selectedCountries.value = []
   } catch (error) {
     errorMessage.value =
       error instanceof Error
@@ -826,7 +826,7 @@ function resetExploration() {
   selectedMetric.value = 'co2PerCapita'
   startYear.value = meta.value.baselineYear
   endYear.value = meta.value.latestYear
-  selectedCountries.value = [meta.value.featuredCountries[0] ?? 'DEU'].filter(Boolean)
+  selectedCountries.value = []
   hoveredCountry.value = null
   activeStory.value = null
 }
@@ -1084,6 +1084,7 @@ function navigateToPage(page: 'story' | 'explore') {
               :metric-label="currentMetricLabel"
               :start-year="startYear"
               :end-year="endYear"
+              :is-playing-timeline="isPlayingTimeline"
               :locale="locale"
               :annotations="activeStoryAnnotations"
               @select="selectCountry"

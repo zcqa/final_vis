@@ -14,7 +14,14 @@ const props = defineProps<{
 const copy = computed(() =>
   props.locale === 'zh'
     ? {
-        empty: '点一个国家，这里会出现一张简短的国家卡。',
+        emptyTitle: '从散点图开始',
+        emptyLead: '单击一个国家查看国家卡；按住鼠标拖拽可以框选一组国家。',
+        emptySingle: '选 1 个国家',
+        emptySingleBody: '查看 GDP、排放、消费端差值和人口。',
+        emptyCompare: '选 2—4 个国家',
+        emptyCompareBody: '并排比较几条路径的差异。',
+        emptyGroup: '框选 5 个以上',
+        emptyGroupBody: '自动汇总地区、收入水平和平均变化。',
         selectionTitle: '选择集合',
         selectionIntro: '这组国家的共同特征',
         selectedCount: '选中国家',
@@ -32,9 +39,19 @@ const copy = computed(() =>
         population: '人口',
         brief: '轨迹速写',
         gapUnit: '吨/人',
+        status: '类型',
+        region: '地区',
+        renewables: '可再生能源',
       }
     : {
-        empty: 'Click a country to load a compact country card here.',
+        emptyTitle: 'Start with the scatterplot',
+        emptyLead: 'Click one country for a country card, or drag across the chart to select a group.',
+        emptySingle: 'Select 1 country',
+        emptySingleBody: 'Read GDP, emissions, consumption gap, and population.',
+        emptyCompare: 'Select 2-4 countries',
+        emptyCompareBody: 'Compare a few paths side by side.',
+        emptyGroup: 'Brush 5 or more',
+        emptyGroupBody: 'Summarize region, income level, and average change.',
         selectionTitle: 'Selection summary',
         selectionIntro: 'What this group has in common',
         selectedCount: 'Selected countries',
@@ -52,6 +69,9 @@ const copy = computed(() =>
         population: 'Population',
         brief: 'Trajectory sketch',
         gapUnit: 't / cap',
+        status: 'Type',
+        region: 'Region',
+        renewables: 'Renewables',
       },
 )
 
@@ -104,7 +124,7 @@ function statusText(status: OverviewPoint['status']) {
 }
 
 const briefText = computed(() => {
-  const point = props.point
+  const point = primaryPoint.value
   if (!point) {
     return ''
   }
@@ -155,9 +175,30 @@ function average(values: Array<number | null>) {
   return numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length
 }
 
+const displayMode = computed(() => {
+  const count = props.selectedPoints.length
+
+  if (count === 0) {
+    return 'empty'
+  }
+
+  if (count === 1) {
+    return 'single'
+  }
+
+  if (count <= 4) {
+    return 'compare'
+  }
+
+  return 'summary'
+})
+
+const primaryPoint = computed(() => props.selectedPoints[0] ?? props.point)
+const comparePoints = computed(() => props.selectedPoints.slice(0, 4))
+
 const selectionSummary = computed(() => {
   const points = props.selectedPoints
-  if (points.length <= 1) {
+  if (points.length <= 4) {
     return null
   }
 
@@ -187,7 +228,30 @@ const selectionSummary = computed(() => {
 
 <template>
   <div class="chart-card fact-box">
-    <div v-if="selectionSummary" class="selection-summary">
+    <div v-if="displayMode === 'empty'" class="insight-empty">
+      <div class="fact-box__identity">
+        <div class="fact-box__meta">Data Explorer</div>
+        <h2>{{ copy.emptyTitle }}</h2>
+        <p class="fact-box__period">{{ copy.emptyLead }}</p>
+      </div>
+
+      <div class="insight-empty__grid">
+        <div class="fact-box__metric">
+          <span>{{ copy.emptySingle }}</span>
+          <strong>{{ copy.emptySingleBody }}</strong>
+        </div>
+        <div class="fact-box__metric">
+          <span>{{ copy.emptyCompare }}</span>
+          <strong>{{ copy.emptyCompareBody }}</strong>
+        </div>
+        <div class="fact-box__metric">
+          <span>{{ copy.emptyGroup }}</span>
+          <strong>{{ copy.emptyGroupBody }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="displayMode === 'summary' && selectionSummary" class="selection-summary">
       <div class="fact-box__identity">
         <div class="fact-box__meta">{{ copy.selectionTitle }}</div>
         <h2>{{ selectionSummary.count }} {{ copy.countries }}</h2>
@@ -223,33 +287,71 @@ const selectionSummary = computed(() => {
       </div>
     </div>
 
-    <div v-else-if="point" class="fact-box__layout">
+    <div v-else-if="displayMode === 'compare'" class="selection-compare">
       <div class="fact-box__identity">
-        <div class="fact-box__meta">{{ point.isoCode }}</div>
-        <h2>{{ point.country }}</h2>
-        <div :class="['fact-box__status', `fact-box__status--${point.status}`]">
-          <span class="fact-box__status-dot"></span>
-          {{ statusText(point.status) }}
+        <div class="fact-box__meta">{{ copy.compare }}</div>
+        <h2>{{ comparePoints.length }} {{ copy.countries }}</h2>
+        <p class="fact-box__period">{{ comparePoints[0]?.startYear }} — {{ comparePoints[0]?.endYear }}</p>
+      </div>
+
+      <div class="compare-table compare-table--insight">
+        <div class="compare-table__row compare-table__header">
+          <span>{{ copy.countries }}</span>
+          <span>{{ copy.status }}</span>
+          <span>{{ copy.gdp }}</span>
+          <span>{{ metricLabel }}</span>
+          <span>{{ copy.gap }}</span>
         </div>
-        <p class="fact-box__period">{{ point.startYear }} — {{ point.endYear }} {{ copy.period }}</p>
+        <div v-for="comparePoint in comparePoints" :key="comparePoint.isoCode" class="compare-table__row compare-table__row--insight">
+          <div class="compare-cell">
+            <strong>{{ comparePoint.country }}</strong>
+            <span>{{ comparePoint.region }}</span>
+          </div>
+          <div class="compare-cell">
+            <strong>{{ statusText(comparePoint.status) }}</strong>
+            <span>{{ comparePoint.incomeLevel }}</span>
+          </div>
+          <div class="compare-cell">
+            <strong>{{ arrowFor(comparePoint.gdpChangePct) }} {{ formatSignedPercent(comparePoint.gdpChangePct, 1, locale) }}</strong>
+          </div>
+          <div class="compare-cell">
+            <strong>{{ arrowFor(comparePoint.metricChangePct) }} {{ formatSignedPercent(comparePoint.metricChangePct, 1, locale) }}</strong>
+          </div>
+          <div class="compare-cell">
+            <strong>{{ formatSignedNumber(comparePoint.endRecord.consumptionProductionGapPerCapita, 2, locale) }}</strong>
+            <span>{{ copy.gapUnit }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="primaryPoint" class="fact-box__layout">
+      <div class="fact-box__identity">
+        <div class="fact-box__meta">{{ primaryPoint.isoCode }}</div>
+        <h2>{{ primaryPoint.country }}</h2>
+        <div :class="['fact-box__status', `fact-box__status--${primaryPoint.status}`]">
+          <span class="fact-box__status-dot"></span>
+          {{ statusText(primaryPoint.status) }}
+        </div>
+        <p class="fact-box__period">{{ primaryPoint.startYear }} — {{ primaryPoint.endYear }} {{ copy.period }}</p>
       </div>
 
       <div class="fact-box__metrics">
         <div class="fact-box__metric">
           <span>{{ copy.gdp }}</span>
-          <strong>{{ arrowFor(point.gdpChangePct) }} {{ formatSignedPercent(point.gdpChangePct, 1, locale) }}</strong>
+          <strong>{{ arrowFor(primaryPoint.gdpChangePct) }} {{ formatSignedPercent(primaryPoint.gdpChangePct, 1, locale) }}</strong>
         </div>
         <div class="fact-box__metric">
           <span>{{ metricLabel }}</span>
-          <strong>{{ arrowFor(point.metricChangePct) }} {{ formatSignedPercent(point.metricChangePct, 1, locale) }}</strong>
+          <strong>{{ arrowFor(primaryPoint.metricChangePct) }} {{ formatSignedPercent(primaryPoint.metricChangePct, 1, locale) }}</strong>
         </div>
         <div class="fact-box__metric">
           <span>{{ copy.gap }}</span>
-          <strong>{{ formatSignedNumber(point.endRecord.consumptionProductionGapPerCapita, 2, locale) }} {{ copy.gapUnit }}</strong>
+          <strong>{{ formatSignedNumber(primaryPoint.endRecord.consumptionProductionGapPerCapita, 2, locale) }} {{ copy.gapUnit }}</strong>
         </div>
         <div class="fact-box__metric">
           <span>{{ copy.population }}</span>
-          <strong>{{ formatCompactNumber(point.endRecord.population, 1, locale) }}</strong>
+          <strong>{{ formatCompactNumber(primaryPoint.endRecord.population, 1, locale) }}</strong>
         </div>
       </div>
 
@@ -258,18 +360,6 @@ const selectionSummary = computed(() => {
         <p>{{ briefText }}</p>
       </div>
 
-      <div v-if="selectedCountries.length > 1" class="fact-box__compare">
-        <span class="fact-box__label">{{ copy.compare }}</span>
-        <div class="fact-box__chips">
-          <span v-for="country in selectedCountries" :key="country.isoCode" class="country-chip">
-            {{ country.country }}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <div v-else class="empty-state">
-      {{ copy.empty }}
     </div>
   </div>
 </template>
