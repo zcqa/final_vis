@@ -67,7 +67,7 @@ const copy = computed(() =>
 
     <div class="hero__copy">
       <h1>{{ title }}</h1>
-      <p class="hero__lead">
+      <p v-if="lead" class="hero__lead">
         {{ lead }}
       </p>
       <p class="hero__summary">{{ summary }}</p>

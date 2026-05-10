@@ -35,6 +35,8 @@ const copy = computed(() =>
         intensityNote: '',
         compareTitle: '几个信号',
         missingNote: 'N/A 表示该国家在当前年份范围内缺少能源结构、消费端排放或 GDP 字段。',
+        openCountry: '查看单国机制',
+        backCompare: '返回并排比较',
         headers: {
           country: '国家',
           renewables: '可再生能源',
@@ -70,6 +72,8 @@ const copy = computed(() =>
         intensityNote: '',
         compareTitle: 'Signals',
         missingNote: 'N/A means the selected country-year window lacks energy, consumption-emissions, or GDP fields.',
+        openCountry: 'Open country mechanism',
+        backCompare: 'Back to comparison',
         headers: {
           country: 'Country',
           renewables: 'Renewables',
@@ -85,22 +89,54 @@ const copy = computed(() =>
 )
 
 const mode = ref<'energy' | 'gap' | 'intensity' | 'compare'>('energy')
+const focusedGroupIso = ref<string | null>(null)
 
 watch(
   () => props.seriesGroups.length,
   (count) => {
     if (count > 1) {
-      mode.value = 'compare'
+      if (!focusedGroupIso.value) {
+        mode.value = 'compare'
+      }
     } else if (count === 1 && mode.value === 'compare') {
+      focusedGroupIso.value = null
       mode.value = 'energy'
     }
   },
   { immediate: true },
 )
 
-const primaryGroup = computed(() => props.seriesGroups[0] ?? null)
+watch(
+  () => props.seriesGroups.map((group) => group.isoCode).join('|'),
+  () => {
+    if (focusedGroupIso.value && !props.seriesGroups.some((group) => group.isoCode === focusedGroupIso.value)) {
+      focusedGroupIso.value = null
+      if (props.seriesGroups.length > 1) {
+        mode.value = 'compare'
+      }
+    }
+  },
+)
+
+const hasFocusedGroup = computed(() => focusedGroupIso.value !== null && props.seriesGroups.length > 1)
+const primaryGroup = computed(
+  () =>
+    (focusedGroupIso.value
+      ? props.seriesGroups.find((group) => group.isoCode === focusedGroupIso.value)
+      : props.seriesGroups[0]) ?? null,
+)
 const primarySeries = computed(() => primaryGroup.value?.values ?? [])
 const primaryCountryName = computed(() => primaryGroup.value?.country ?? '')
+
+function openCountryMechanism(isoCode: string) {
+  focusedGroupIso.value = isoCode
+  mode.value = 'energy'
+}
+
+function returnToCompare() {
+  focusedGroupIso.value = null
+  mode.value = props.seriesGroups.length > 1 ? 'compare' : 'energy'
+}
 
 const width = 760
 const height = 310
@@ -354,9 +390,17 @@ const modeSubtitle = computed(() => {
 
       <div class="mode-switch">
         <button
+          v-if="hasFocusedGroup"
+          type="button"
+          class="mode-switch__button mode-switch__button--return"
+          @click="returnToCompare"
+        >
+          {{ copy.backCompare }}
+        </button>
+        <button
           type="button"
           :class="['mode-switch__button', { 'mode-switch__button--active': mode === 'energy' }]"
-          :disabled="seriesGroups.length > 1"
+          :disabled="seriesGroups.length > 1 && !hasFocusedGroup"
           @click="mode = 'energy'"
         >
           {{ copy.energyMode }}
@@ -364,7 +408,7 @@ const modeSubtitle = computed(() => {
         <button
           type="button"
           :class="['mode-switch__button', { 'mode-switch__button--active': mode === 'gap' }]"
-          :disabled="seriesGroups.length > 1"
+          :disabled="seriesGroups.length > 1 && !hasFocusedGroup"
           @click="mode = 'gap'"
         >
           {{ copy.gapMode }}
@@ -372,16 +416,16 @@ const modeSubtitle = computed(() => {
         <button
           type="button"
           :class="['mode-switch__button', { 'mode-switch__button--active': mode === 'intensity' }]"
-          :disabled="seriesGroups.length > 1"
+          :disabled="seriesGroups.length > 1 && !hasFocusedGroup"
           @click="mode = 'intensity'"
         >
           {{ copy.intensityMode }}
         </button>
         <button
           type="button"
-          :class="['mode-switch__button', { 'mode-switch__button--active': mode === 'compare' }]"
+          :class="['mode-switch__button', { 'mode-switch__button--active': mode === 'compare' && !hasFocusedGroup }]"
           :disabled="seriesGroups.length <= 1"
-          @click="mode = 'compare'"
+          @click="returnToCompare"
         >
           {{ copy.compareMode }}
         </button>
@@ -523,7 +567,13 @@ const modeSubtitle = computed(() => {
           <div
             v-for="row in compareRows.filter((item) => item.productionChangePct !== null || item.consumptionChangePct !== null)"
             :key="`${row.isoCode}-dumbbell`"
-            class="dumbbell-row"
+            class="dumbbell-row dumbbell-row--button"
+            role="button"
+            tabindex="0"
+            :title="copy.openCountry"
+            @click="openCountryMechanism(row.isoCode)"
+            @keydown.enter.prevent="openCountryMechanism(row.isoCode)"
+            @keydown.space.prevent="openCountryMechanism(row.isoCode)"
           >
             <span class="dumbbell-row__country">{{ row.country }}</span>
             <div class="dumbbell-row__track">
@@ -562,10 +612,13 @@ const modeSubtitle = computed(() => {
           <span>{{ copy.headers.intensity }}</span>
           <span>{{ copy.headers.gap }}</span>
         </div>
-        <div
+        <button
           v-for="row in compareRows"
           :key="row.isoCode"
-          class="compare-table__row compare-table__row--mechanism"
+          type="button"
+          class="compare-table__row compare-table__row--mechanism compare-table__row--button"
+          :title="copy.openCountry"
+          @click="openCountryMechanism(row.isoCode)"
         >
           <strong>{{ row.country }}</strong>
           <div class="compare-cell">
@@ -577,7 +630,7 @@ const modeSubtitle = computed(() => {
           <div class="compare-cell">
             <strong>{{ formatSignedNumber(row.gapEnd, 2, locale) }}</strong>
           </div>
-        </div>
+        </button>
       </div>
 
     </template>

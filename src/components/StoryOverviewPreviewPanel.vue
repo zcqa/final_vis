@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { scaleLinear, scaleSqrt } from 'd3-scale'
 import EvidenceStrip from './EvidenceStrip.vue'
 import type { Locale, OverviewPoint, StoryChapterPreview } from '../types'
@@ -18,6 +18,8 @@ const innerHeight = height - margin.top - margin.bottom
 const hoveredPoint = ref<OverviewPoint | null>(null)
 const tooltipStyle = ref({ left: '0px', top: '0px' })
 const previewRoot = ref<HTMLElement | null>(null)
+const animatedYear = ref(props.preview.endYear)
+let playbackTimer: number | null = null
 
 const statusColor: Record<OverviewPoint['status'], string> = {
   decoupled: '#16805f',
@@ -34,9 +36,6 @@ const statusLabels: Record<OverviewPoint['status'], Record<Locale, string>> = {
 }
 
 const copy = computed(() => {
-  const count = props.preview.overviewPoints?.length ?? 0
-  const decoupledCount = props.preview.overviewPoints?.filter((point) => point.status === 'decoupled').length ?? 0
-
   if (props.preview.mode === 'explore') {
     return props.locale === 'zh'
       ? {
@@ -44,8 +43,6 @@ const copy = computed(() => {
           subtitle: '探索模式中有完整控件。',
           xLabel: '人均 GDP 变化',
           yLabel: props.preview.metricLabel,
-          stat: '开放探索',
-          hint: '点击“进入数据探索”后继续。',
           country: '国家/地区',
           status: '类型',
           gdp: 'GDP 变化',
@@ -56,8 +53,6 @@ const copy = computed(() => {
           subtitle: 'The Atlas below keeps every control open. Change years, switch metrics, and brush countries to test the story.',
           xLabel: 'GDP per capita change',
           yLabel: props.preview.metricLabel,
-          stat: 'Open exploration',
-          hint: 'Continue with the data explorer below.',
           country: 'Country',
           status: 'Type',
           gdp: 'GDP change',
@@ -74,14 +69,6 @@ const copy = computed(() => {
         subtitle: `${props.preview.startYear} 至 ${props.preview.endYear} 年，横轴为人均 GDP 变化，纵轴为 ${props.preview.metricLabel} 变化。`,
         xLabel: '人均 GDP 变化',
         yLabel: props.preview.metricLabel,
-        stat:
-          props.preview.mode === 'absolute'
-            ? `${decoupledCount} 个国家进入右下象限`
-            : `${count} 个国家/地区有完整数据`,
-        hint:
-          props.preview.mode === 'absolute'
-            ? '绿色点是经济增长且人均排放下降的国家。'
-            : '',
         country: '国家/地区',
         status: '类型',
         gdp: 'GDP 变化',
@@ -95,14 +82,6 @@ const copy = computed(() => {
         subtitle: `${props.preview.startYear} to ${props.preview.endYear}, x is GDP per capita change and y is ${props.preview.metricLabel} change.`,
         xLabel: 'GDP per capita change',
         yLabel: props.preview.metricLabel,
-        stat:
-          props.preview.mode === 'absolute'
-            ? `${decoupledCount} countries enter the lower-right`
-            : `${count} countries or regions have complete data`,
-        hint:
-          props.preview.mode === 'absolute'
-            ? 'Green dots are countries with growth and falling emissions per person.'
-            : 'The crosshair separates the four directions; the lower-right matters most.',
         country: 'Country',
         status: 'Type',
         gdp: 'GDP change',
@@ -131,15 +110,30 @@ function clippedDomain(values: number[]) {
 
   const lower = quantile(values, 0.05)
   const upper = quantile(values, 0.95)
-  const span = upper - lower || Math.max(Math.abs(upper), 1)
-  return [lower - span * 0.1, upper + span * 0.1]
+  const min = Math.min(lower, 0)
+  const max = Math.max(upper, 0)
+  const span = max - min || Math.max(Math.abs(max), 1)
+  return [min - span * 0.1, max + span * 0.1]
 }
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
 
+const isAnimatedGlobal = computed(
+  () => props.preview.chapterId === 'tour-global' && (props.preview.overviewTimelinePoints?.length ?? 0) > 0,
+)
+const animationYears = computed(() =>
+  [...new Set((props.preview.overviewTimelinePoints ?? []).map((point) => point.endYear))].sort(
+    (left, right) => left - right,
+  ),
+)
 const points = computed(() => props.preview.overviewPoints ?? [])
+const displayPoints = computed(() =>
+  isAnimatedGlobal.value
+    ? (props.preview.overviewTimelinePoints ?? []).filter((point) => point.endYear === animatedYear.value)
+    : points.value,
+)
 const xScale = computed(() => scaleLinear().domain(clippedDomain(points.value.map((point) => point.gdpChangePct))).range([0, innerWidth]))
 const yScale = computed(() => scaleLinear().domain(clippedDomain(points.value.map((point) => point.metricChangePct))).range([innerHeight, 0]))
 const radiusScale = computed(() =>
@@ -149,7 +143,7 @@ const radiusScale = computed(() =>
 )
 
 const chartPoints = computed(() =>
-  points.value.map((point) => {
+  displayPoints.value.map((point) => {
     const clippedX = clamp(xScale.value(point.gdpChangePct), 0, innerWidth)
     const clippedY = clamp(yScale.value(point.metricChangePct), 0, innerHeight)
     const highlighted = !props.preview.highlightStatus || point.status === props.preview.highlightStatus
@@ -166,6 +160,53 @@ const chartPoints = computed(() =>
   }),
 )
 
+const currentPointByIso = computed(() => new Map(chartPoints.value.map((item) => [item.point.isoCode, item])))
+
+const motionTrails = computed(() => {
+  if (!isAnimatedGlobal.value) {
+    return []
+  }
+
+  const groupedPoints = new Map<string, OverviewPoint[]>()
+
+  for (const point of props.preview.overviewTimelinePoints ?? []) {
+    if (point.endYear > animatedYear.value) {
+      continue
+    }
+
+    const history = groupedPoints.get(point.isoCode) ?? []
+    history.push(point)
+    groupedPoints.set(point.isoCode, history)
+  }
+
+  return Array.from(groupedPoints.entries()).flatMap(([isoCode, history]) => {
+    if (history.length < 2) {
+      return []
+    }
+
+    const currentPoint = currentPointByIso.value.get(isoCode)
+    if (!currentPoint) {
+      return []
+    }
+
+    const nodes = history
+      .sort((left, right) => left.endYear - right.endYear)
+      .map((point) => ({
+        x: clamp(xScale.value(point.gdpChangePct), 0, innerWidth),
+        y: clamp(yScale.value(point.metricChangePct), 0, innerHeight),
+      }))
+
+    return [
+      {
+        isoCode,
+        path: nodes.map((node, index) => `${index === 0 ? 'M' : 'L'} ${node.x} ${node.y}`).join(' '),
+        color: currentPoint.color,
+        highlighted: currentPoint.highlighted,
+      },
+    ]
+  })
+})
+
 const zeroX = computed(() => clamp(xScale.value(0), 0, innerWidth))
 const zeroY = computed(() => clamp(yScale.value(0), 0, innerHeight))
 
@@ -181,6 +222,46 @@ function updateTooltip(event: MouseEvent, point: OverviewPoint) {
     top: `${clamp(event.clientY - rect.top - 8, 12, Math.max(rect.height - 116, 12))}px`,
   }
 }
+
+function stopPlayback() {
+  if (playbackTimer !== null) {
+    window.clearInterval(playbackTimer)
+    playbackTimer = null
+  }
+}
+
+function startPlayback() {
+  stopPlayback()
+
+  if (!isAnimatedGlobal.value || animationYears.value.length < 2) {
+    animatedYear.value = props.preview.endYear
+    return
+  }
+
+  animatedYear.value = animationYears.value[0]
+  playbackTimer = window.setInterval(() => {
+    const currentIndex = animationYears.value.indexOf(animatedYear.value)
+    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % animationYears.value.length : 0
+    animatedYear.value = animationYears.value[nextIndex]
+  }, 620)
+}
+
+watch(
+  () => props.preview.chapterId,
+  () => {
+    startPlayback()
+  },
+  { immediate: true },
+)
+
+watch(
+  () => props.preview.overviewTimelinePoints,
+  () => {
+    startPlayback()
+  },
+)
+
+onBeforeUnmount(stopPlayback)
 </script>
 
 <template>
@@ -188,11 +269,6 @@ function updateTooltip(event: MouseEvent, point: OverviewPoint) {
     <div class="story-preview__header">
       <h4 class="story-preview__headline">{{ copy.headline }}</h4>
       <p class="story-preview__subtitle">{{ copy.subtitle }}</p>
-    </div>
-
-    <div class="story-overview__stat">
-      <strong>{{ copy.stat }}</strong>
-      <span>{{ copy.hint }}</span>
     </div>
 
     <svg
@@ -210,6 +286,18 @@ function updateTooltip(event: MouseEvent, point: OverviewPoint) {
         <text class="story-overview__watermark" :x="innerWidth - 4" :y="18" text-anchor="end">
           {{ locale === 'zh' ? '增长伴随排放' : 'Growth with emissions' }}
         </text>
+        <text v-if="isAnimatedGlobal" class="story-overview__year" :x="innerWidth - 4" y="36" text-anchor="end">
+          {{ preview.startYear }} → {{ animatedYear }}
+        </text>
+
+        <path
+          v-for="trail in motionTrails"
+          :key="`${trail.isoCode}-trail`"
+          class="story-overview__trail"
+          :class="{ 'story-overview__trail--muted': !trail.highlighted }"
+          :d="trail.path"
+          :stroke="trail.color"
+        />
 
         <circle
           v-for="item in chartPoints"
@@ -251,11 +339,6 @@ function updateTooltip(event: MouseEvent, point: OverviewPoint) {
         </div>
       </div>
     </div>
-
-    <p class="story-preview__flow">
-      <strong>{{ locale === 'zh' ? '时间窗口：' : 'Window: ' }}</strong>
-      {{ preview.startYear }} → {{ preview.endYear }}
-    </p>
 
     <EvidenceStrip v-if="preview.seriesGroups.length" :preview="preview" :locale="locale" />
   </div>

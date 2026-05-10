@@ -247,6 +247,20 @@ p {
   gap: 12px;
 }
 
+.atlas-workspace {
+  display: grid;
+  grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 18px;
+}
+
+.atlas-sidebar {
+  position: sticky;
+  top: 18px;
+  align-self: start;
+}
+
 .story-stage {
   margin-top: 36px;
   padding: 10px 0 0;
@@ -558,12 +572,39 @@ p {
   pointer-events: none;
 }
 
+.story-overview__year {
+  fill: var(--accent-strong);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.story-overview__trail {
+  fill: none;
+  stroke-width: 1.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-opacity: 0.28;
+  pointer-events: none;
+}
+
+.story-overview__trail--muted {
+  stroke-opacity: 0.1;
+}
+
 .story-overview__point {
   fill-opacity: 0.35;
   stroke-opacity: 0.9;
   stroke-width: 1.2;
   cursor: crosshair;
-  transition: opacity 0.18s ease, fill-opacity 0.18s ease, stroke-width 0.18s ease;
+  transition:
+    cx 0.55s ease,
+    cy 0.55s ease,
+    r 0.25s ease,
+    opacity 0.18s ease,
+    fill-opacity 0.18s ease,
+    stroke-width 0.18s ease;
 }
 
 .story-overview__point:hover {
@@ -720,6 +761,13 @@ p {
   backdrop-filter: none;
 }
 
+.atlas-sidebar.controls--toolbar {
+  padding: 0 18px 18px 0;
+  border-top: none;
+  border-right: 1px solid rgba(35, 48, 45, 0.1);
+  border-bottom: none;
+}
+
 .controls__row {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1.2fr;
@@ -746,12 +794,34 @@ p {
 }
 
 .controls--sidebar .controls__row,
-.controls--sidebar .controls__row--years {
-  grid-template-columns: 1fr;
+.controls--sidebar .controls__row--years,
+.controls--sidebar .controls__row--toolbar-secondary {
+  grid-template-columns: 1fr !important;
+  align-items: stretch !important;
+}
+
+.controls--sidebar .controls__row + .controls__row {
+  margin-top: 16px;
 }
 
 .controls--sidebar .control-note {
   padding: 0;
+}
+
+.controls--sidebar .control-note--toolbar,
+.controls--sidebar .playback-panel__status {
+  padding: 12px 14px;
+}
+
+.controls--sidebar .field {
+  min-width: 0;
+}
+
+.controls--sidebar .year-range,
+.controls--sidebar .playback-panel {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
 }
 
 .controls--sidebar .selection-row {
@@ -824,6 +894,13 @@ p {
   margin-top: 0;
   padding-top: 0;
   border-top: none;
+}
+
+.controls--sidebar.controls--toolbar .year-range,
+.controls--sidebar.controls--toolbar .playback-panel {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
 }
 
 .year-range__labels,
@@ -977,6 +1054,16 @@ p {
   border: 1px solid rgba(31, 143, 106, 0.18);
   background: rgba(31, 143, 106, 0.08);
   color: var(--accent-strong);
+}
+
+.country-chip--button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.country-chip--button:hover {
+  border-color: rgba(31, 143, 106, 0.36);
+  background: rgba(31, 143, 106, 0.14);
 }
 
 .selection-chip__remove {
@@ -1926,6 +2013,10 @@ p {
   font-weight: 700;
 }
 
+.mode-switch__button--return {
+  color: var(--accent-strong);
+}
+
 .trajectory-copy {
   margin-bottom: 12px;
 }
@@ -1952,6 +2043,28 @@ p {
 .fact-box__label {
   color: var(--muted);
   font-size: 0.84rem;
+}
+
+.fact-box__meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.text-button {
+  border: none;
+  background: transparent;
+  color: var(--accent-strong);
+  padding: 0;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.text-button:hover {
+  text-decoration: underline;
 }
 
 .fact-box__identity h2 {
@@ -2061,6 +2174,20 @@ p {
 
 .compare-table__row--insight {
   background: transparent;
+}
+
+.compare-table__row--button {
+  width: 100%;
+  border: 1px solid var(--line);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.compare-table__row--button:hover {
+  border-color: rgba(31, 143, 106, 0.28);
+  background: rgba(31, 143, 106, 0.06);
 }
 
 .fact-box__brief,
@@ -2283,6 +2410,17 @@ p {
   align-items: center;
 }
 
+.dumbbell-row--button {
+  margin: 0 -8px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.dumbbell-row--button:hover {
+  background: rgba(31, 143, 106, 0.06);
+}
+
 .dumbbell-row__country,
 .dumbbell-row__value {
   color: var(--text);
@@ -2378,6 +2516,21 @@ p {
 
   .controls {
     position: static;
+  }
+
+  .atlas-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .atlas-sidebar {
+    position: static;
+  }
+
+  .atlas-sidebar.controls--toolbar {
+    padding: 18px 0 22px;
+    border-right: none;
+    border-top: 1px solid rgba(35, 48, 45, 0.1);
+    border-bottom: 1px solid rgba(35, 48, 45, 0.1);
   }
 
   .panel--side,

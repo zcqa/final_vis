@@ -132,10 +132,10 @@ const playbackSpeedMs = ref(900)
 let playbackTimer: number | null = null
 
 const copy = computed(() =>
-  locale.value === 'zh'
+      locale.value === 'zh'
     ? {
         title: '谁真正实现了碳脱钩',
-        lead: '从国家尺度去看，哪些地方已经开始把增长和排放拉开，哪些还没有。',
+        lead: '',
         reset: '重置探索',
         atlasEyebrow: 'Data Explorer',
         atlasTitle: '自由探索：全球国家轨迹',
@@ -707,6 +707,17 @@ const storyPreview = computed<StoryChapterPreview | null>(() => {
             return point ? [point] : []
           })
         : undefined,
+    overviewTimelinePoints:
+      chapter.id === 'tour-global'
+        ? (meta.value?.years ?? [])
+            .filter((year) => year >= chapter.startYear && year <= chapter.endYear)
+            .flatMap((year) =>
+              (meta.value?.countryOptions ?? []).flatMap((country) => {
+                const point = buildOverviewPoint(country, chapter.startYear, year, chapter.metric)
+                return point ? [point] : []
+              }),
+            )
+        : undefined,
     highlightStatus: mode === 'absolute' ? 'decoupled' : undefined,
   }
 })
@@ -717,7 +728,7 @@ const highlightedStats = computed(() => ({
 }))
 const heroSummary = computed(() =>
   locale.value === 'zh'
-    ? `当前这段时间里，有 ${highlightedStats.value.countryCount} 个国家数据完整；其中 ${highlightedStats.value.decoupledCount} 个已经落到“继续增长、排放回落”的区域。`
+    ? `1990至2022年，有 ${highlightedStats.value.countryCount} 个国家数据完整；其中 ${highlightedStats.value.decoupledCount} 个已经落到“继续增长、排放回落”的区域。`
     : `In the current time window, ${highlightedStats.value.countryCount} countries have complete data, and ${highlightedStats.value.decoupledCount} of them already sit in the grow-while-emissions-fall region.`,
 )
 
@@ -923,7 +934,8 @@ function navigateToPage(page: 'story' | 'explore') {
           </div>
         </div>
 
-        <div class="controls controls--toolbar">
+        <div class="atlas-workspace">
+        <aside class="controls controls--toolbar controls--sidebar atlas-sidebar">
           <div class="controls__row">
             <label class="field">
               <span>{{ copy.search }}</span>
@@ -1073,7 +1085,7 @@ function navigateToPage(page: 'story' | 'explore') {
           <datalist id="country-options">
             <option v-for="country in meta?.countryOptions" :key="country.isoCode" :value="country.country"></option>
           </datalist>
-        </div>
+        </aside>
 
         <div class="dashboard-grid dashboard-grid--atlas">
           <section class="panel panel--full">
@@ -1115,6 +1127,7 @@ function navigateToPage(page: 'story' | 'explore') {
           <section class="panel panel--full">
             <EnergyMixPanel :series-groups="selectedSeriesGroups" :locale="locale" />
           </section>
+        </div>
         </div>
 
         <footer class="footer">

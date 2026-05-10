@@ -24,7 +24,7 @@ const copy = computed(() =>
   props.locale === 'zh'
     ? {
         eyebrow: '',
-        title: '六步读懂全球碳脱钩',
+        title: '五章读懂全球碳脱钩',
         description: '',
         chapterLabel: '第',
         jumpAtlas: '进入数据探索',
@@ -32,7 +32,7 @@ const copy = computed(() =>
       }
     : {
         eyebrow: 'Story',
-        title: 'A six-step guide to global carbon decoupling',
+        title: 'A five-chapter guide to global carbon decoupling',
         description:
           'A path through global quadrants, country trajectories, and the consumption correction behind rich-country decoupling.',
         chapterLabel: 'Chapter',

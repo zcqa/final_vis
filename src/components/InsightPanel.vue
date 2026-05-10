@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { CountryOption, Locale, OverviewPoint } from '../types'
 import { formatCompactNumber, formatSignedNumber, formatSignedPercent } from '../utils/formatters'
 
@@ -42,6 +42,10 @@ const copy = computed(() =>
         status: '类型',
         region: '地区',
         renewables: '可再生能源',
+        backToCompare: '返回对比表',
+        backToSummary: '返回群体摘要',
+        openCountry: '查看单国卡',
+        selectedMembers: '已选国家',
       }
     : {
         emptyTitle: 'Start with the scatterplot',
@@ -72,8 +76,14 @@ const copy = computed(() =>
         status: 'Type',
         region: 'Region',
         renewables: 'Renewables',
+        backToCompare: 'Back to comparison',
+        backToSummary: 'Back to summary',
+        openCountry: 'Open country card',
+        selectedMembers: 'Selected countries',
       },
 )
+
+const focusedIso = ref<string | null>(null)
 
 function arrowFor(value: number | null) {
   if (value === null || Number.isNaN(value)) {
@@ -193,8 +203,30 @@ const displayMode = computed(() => {
   return 'summary'
 })
 
-const primaryPoint = computed(() => props.selectedPoints[0] ?? props.point)
+const focusedPoint = computed(() =>
+  focusedIso.value ? props.selectedPoints.find((point) => point.isoCode === focusedIso.value) ?? null : null,
+)
+const primaryPoint = computed(() => focusedPoint.value ?? props.selectedPoints[0] ?? props.point)
 const comparePoints = computed(() => props.selectedPoints.slice(0, 4))
+const hasCollectionView = computed(() => props.selectedPoints.length > 1)
+const backLabel = computed(() => (props.selectedPoints.length > 4 ? copy.value.backToSummary : copy.value.backToCompare))
+
+function focusCountry(isoCode: string) {
+  focusedIso.value = isoCode
+}
+
+function clearFocusedCountry() {
+  focusedIso.value = null
+}
+
+watch(
+  () => props.selectedPoints.map((point) => point.isoCode).join('|'),
+  () => {
+    if (focusedIso.value && !props.selectedPoints.some((point) => point.isoCode === focusedIso.value)) {
+      focusedIso.value = null
+    }
+  },
+)
 
 const selectionSummary = computed(() => {
   const points = props.selectedPoints
@@ -251,6 +283,47 @@ const selectionSummary = computed(() => {
       </div>
     </div>
 
+    <div v-else-if="focusedPoint && primaryPoint" class="fact-box__layout">
+      <div class="fact-box__identity">
+        <div class="fact-box__meta fact-box__meta-row">
+          <span>{{ primaryPoint.isoCode }}</span>
+          <button v-if="hasCollectionView" type="button" class="text-button" @click="clearFocusedCountry">
+            {{ backLabel }}
+          </button>
+        </div>
+        <h2>{{ primaryPoint.country }}</h2>
+        <div :class="['fact-box__status', `fact-box__status--${primaryPoint.status}`]">
+          <span class="fact-box__status-dot"></span>
+          {{ statusText(primaryPoint.status) }}
+        </div>
+        <p class="fact-box__period">{{ primaryPoint.startYear }} — {{ primaryPoint.endYear }} {{ copy.period }}</p>
+      </div>
+
+      <div class="fact-box__metrics">
+        <div class="fact-box__metric">
+          <span>{{ copy.gdp }}</span>
+          <strong>{{ arrowFor(primaryPoint.gdpChangePct) }} {{ formatSignedPercent(primaryPoint.gdpChangePct, 1, locale) }}</strong>
+        </div>
+        <div class="fact-box__metric">
+          <span>{{ metricLabel }}</span>
+          <strong>{{ arrowFor(primaryPoint.metricChangePct) }} {{ formatSignedPercent(primaryPoint.metricChangePct, 1, locale) }}</strong>
+        </div>
+        <div class="fact-box__metric">
+          <span>{{ copy.gap }}</span>
+          <strong>{{ formatSignedNumber(primaryPoint.endRecord.consumptionProductionGapPerCapita, 2, locale) }} {{ copy.gapUnit }}</strong>
+        </div>
+        <div class="fact-box__metric">
+          <span>{{ copy.population }}</span>
+          <strong>{{ formatCompactNumber(primaryPoint.endRecord.population, 1, locale) }}</strong>
+        </div>
+      </div>
+
+      <div class="fact-box__brief">
+        <span class="fact-box__label">{{ copy.brief }}</span>
+        <p>{{ briefText }}</p>
+      </div>
+    </div>
+
     <div v-else-if="displayMode === 'summary' && selectionSummary" class="selection-summary">
       <div class="fact-box__identity">
         <div class="fact-box__meta">{{ copy.selectionTitle }}</div>
@@ -285,6 +358,21 @@ const selectionSummary = computed(() => {
           <strong>{{ selectionSummary.consumptionAboveProductionCount }} / {{ selectionSummary.count }}</strong>
         </div>
       </div>
+
+      <div class="fact-box__compare">
+        <span class="fact-box__label">{{ copy.selectedMembers }}</span>
+        <div class="fact-box__chips">
+          <button
+            v-for="selectedPoint in selectedPoints"
+            :key="selectedPoint.isoCode"
+            type="button"
+            class="country-chip country-chip--button"
+            @click="focusCountry(selectedPoint.isoCode)"
+          >
+            {{ selectedPoint.country }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="displayMode === 'compare'" class="selection-compare">
@@ -302,7 +390,14 @@ const selectionSummary = computed(() => {
           <span>{{ metricLabel }}</span>
           <span>{{ copy.gap }}</span>
         </div>
-        <div v-for="comparePoint in comparePoints" :key="comparePoint.isoCode" class="compare-table__row compare-table__row--insight">
+        <button
+          v-for="comparePoint in comparePoints"
+          :key="comparePoint.isoCode"
+          type="button"
+          class="compare-table__row compare-table__row--insight compare-table__row--button"
+          :title="copy.openCountry"
+          @click="focusCountry(comparePoint.isoCode)"
+        >
           <div class="compare-cell">
             <strong>{{ comparePoint.country }}</strong>
             <span>{{ comparePoint.region }}</span>
@@ -321,7 +416,7 @@ const selectionSummary = computed(() => {
             <strong>{{ formatSignedNumber(comparePoint.endRecord.consumptionProductionGapPerCapita, 2, locale) }}</strong>
             <span>{{ copy.gapUnit }}</span>
           </div>
-        </div>
+        </button>
       </div>
     </div>
 

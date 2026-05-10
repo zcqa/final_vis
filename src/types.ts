@@ -72,6 +72,7 @@ export interface StoryChapterPreview {
   endYear: number
   seriesGroups: CountrySeriesGroup[]
   overviewPoints?: OverviewPoint[]
+  overviewTimelinePoints?: OverviewPoint[]
   highlightStatus?: OverviewPoint['status']
 }
 
